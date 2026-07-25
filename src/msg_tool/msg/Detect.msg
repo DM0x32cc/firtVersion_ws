@@ -1,0 +1,4 @@
+float64 delta_x
+float64 delta_y
+float64 yaw
+bool detected

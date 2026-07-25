@@ -1,0 +1,18 @@
+offb_node:
+  ros__parameters:
+    # 基础飞行参数
+    takeoff_height: 1.1
+    waypoint_threshold: 0.10
+    max_waypoints: 10
+    
+      
+    # 速度限制
+    max_linear_velocity: 1.0    # 最大线速度 (m/s)
+    max_angular_velocity: 0.5   # 最大角速度 (rad/s)
+    
+    # 航点定义 [x, y, z, yaw]
+    waypoints:
+      # wp0: [0.0, 0.0, 1.0, 0.0]
+      wp1: [0.0, -4.0, 1.0, 0.0]
+      wp2: [1.6, -4.0, 1.0, 0.0]      
+      wp3: [1.6, 0.0, 1.0, 0.0]  
