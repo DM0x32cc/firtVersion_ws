@@ -90,7 +90,7 @@ void BaseController::arm()
         {
             arm_callback(future);
         });
-    apply_arm_flag = true;//代表此次已经发送请求
+    apply_arm_flag_ = true;//代表此次已经发送请求
 }
 // 这个response是这个service的回应，我们根据回应来判断是否切换成功
 void BaseController::arm_callback(const std::shared_future<std::shared_ptr<mavros_msgs::srv::CommandBool::Response>> future)
@@ -105,7 +105,7 @@ void BaseController::arm_callback(const std::shared_future<std::shared_ptr<mavro
     } catch (const std::exception& e) {
         RCLCPP_ERROR(get_logger(), "服务调用失败: %s", e.what());
     }
-    apply_arm_flag = false;
+    apply_arm_flag_ = false;
 }
 void BaseController::launch_callback(const std_msgs::msg::Bool::ConstSharedPtr& future)
 {
@@ -147,7 +147,7 @@ void BaseController::engage_offboard_mode() const
         [this](std::shared_future<std::shared_ptr<mavros_msgs::srv::SetMode::Response>> future){
             set_mode_callback(future);
         });
-    apply_offboard_flag=true;
+    apply_offboard_flag_=true;
 }
 
 void BaseController::set_mode_callback(std::shared_future<std::shared_ptr<mavros_msgs::srv::SetMode::Response>> future) const
@@ -163,42 +163,67 @@ void BaseController::set_mode_callback(std::shared_future<std::shared_ptr<mavros
     } catch (const std::exception& e) {
         RCLCPP_ERROR(get_logger(), "服务调用失败: %s", e.what());
     }
-    apply_offboard_flag=false;
+    apply_offboard_flag_=false;
 }
 
 void BaseController::land()//怎么有两个函数？一个被注释了？
 {
-    publish_velocity_body(0.0, 0.0, -0.3, 0.0);
+    if(current_state_.armed==true)
+    {
+        publish_velocity_body(0.0, 0.0, -0.3, 0.0);
+    }
+    else
+    {
+        publish_velocity_body(0.0, 0.0, 0.0, 0.0);
+        apply_disarm_flag_ = false;
+        return;
+    }
 
     double altitude = local_position_.pose.position.z;
 //    RCLCPP_INFO(get_logger(), "当前高度: %.3f", altitude);
-
-    if (altitude < 0.03) {
-        if (command_client_->wait_for_service(std::chrono::seconds(1))) {
+    if (altitude < 0.03) 
+    {
+        if (command_client_->service_is_ready() ) 
+        {
+            if(apply_disarm_flag_ == true)return;//标志位，防止重复申请
+            apply_disarm_flag_=true;
             auto request = std::make_shared<mavros_msgs::srv::CommandLong::Request>();
             request->command = 185;        // MAV_CMD_COMPONENT_ARM_DISARM
-            request->param1 = 1;           // Disarm
+            request->param1 = 0;           // Disarm，原本是1
+            request->param2 = 21196.0;  // ✅ 加上安全码,这尼玛是强制上所马
             request->confirmation = 0;     // No confirmation
-
-            command_client_->async_send_request(
+            command_client_->async_send_request
+            (
                 request,
-                [this](std::shared_future<std::shared_ptr<mavros_msgs::srv::CommandLong::Response>> future) {
-                    try {
+                [this](std::shared_future<std::shared_ptr<mavros_msgs::srv::CommandLong::Response>> future) 
+                {
+                    try 
+                    {
                         auto result = future.get();
-                        if (result->success) {
+                        if (result->success)
+                        {
                             RCLCPP_INFO(get_logger(), "无人机已上锁（通过CommandLong）");
-                        } else {
+                        } 
+                        else 
+                        {
                             RCLCPP_ERROR(get_logger(), "无人机上锁失败（通过CommandLong），飞控拒绝");
                         }
-                    } catch (const std::exception& e) {
+                    } 
+                    catch (const std::exception& e) 
+                    {
                         RCLCPP_ERROR(get_logger(), "上锁服务调用失败: %s", e.what());
                     }
-                });
-        } else {
+                    apply_disarm_flag_=false;
+                }
+            );
+        } 
+        else 
+        {
             RCLCPP_WARN(get_logger(), "上锁服务不可用（CommandLong）");
         }
     }
 }
+// the version below seems only decrease the  threshold
 // void BaseController::land()
 // {
 //     publish_velocity_body(0.0, 0.0, -0.3, 0.0);

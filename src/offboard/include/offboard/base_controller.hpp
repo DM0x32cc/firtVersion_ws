@@ -149,9 +149,9 @@ protected:
     rclcpp::Publisher<msg_tool::msg::FlightInfo>::SharedPtr task_pub_;//this is send to gstation
 
     // 申请offboard与解锁（arm）的标志位
-    mutable bool apply_offboard_flag=false;//家这个mutable代表在函数末尾加上const的函数也可以改变他
-    bool apply_arm_flag=false;
-
+    mutable bool apply_offboard_flag_=false;//家这个mutable代表在函数末尾加上const的函数也可以改变他
+    bool apply_arm_flag_=false;
+    bool apply_disarm_flag_=false;
     // 状态变量
     FlightState flight_state_ = FlightState::INIT;
     mavros_msgs::msg::State current_state_;//mavros
@@ -175,12 +175,13 @@ protected:
     double integral_err_body_y_ = 0.0;
     double integral_err_body_z_ = 0.0;
 
-    struct TrajectorySegment {
+    struct TrajectorySegment 
+    {
     double start_x, start_y, start_z;
     double end_x, end_y, end_z;
     double length;
     double direction_x, direction_y, direction_z; // 单位方向向量
-};
+    };
     //pd控制函数。
     void publish_position_setpoint_trajectory(
         const double start_x, const double start_y, const double start_z,
@@ -188,9 +189,9 @@ protected:
         const double target_yaw) ;
 
     // 类成员变量
-double last_cross_err_x_ = 0.0;
-double last_cross_err_y_ = 0.0;
-rclcpp::Time last_cross_time_ = this->get_clock()->now();
+    double last_cross_err_x_ = 0.0;
+    double last_cross_err_y_ = 0.0;
+    rclcpp::Time last_cross_time_ = this->get_clock()->now();
 
 
     rclcpp::Time last_time_ = this->get_clock()->now();

@@ -91,14 +91,14 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
             if(launch_flag_ == false ) break;
             if( current_state_.mode!="OFFBOARD")
             {
-                if(apply_offboard_flag == true) break;
+                if(apply_offboard_flag_ == true) break;
                 engage_offboard_mode();
                 RCLCPP_INFO(get_logger(), "申请进入OFFBOARD模式");
                 return false;
             }
             if(current_state_.armed==false)
             {
-                if(apply_arm_flag == true) break;
+                if(apply_arm_flag_ == true) break;
                 arm();//这个如果解锁不成功会不断重试的，所以无需加上if判断
                 return false;
             }
