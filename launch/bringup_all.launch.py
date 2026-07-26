@@ -90,7 +90,7 @@ def generate_launch_description():
     #任务控制节点启动
     launch_task_controller_node = Node(
         package='offboard',
-        executable='test_task_controller',
+        executable='offb_node',
         name='offb_node',
         output = "screen"#和一位
     )

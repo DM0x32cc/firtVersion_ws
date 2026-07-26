@@ -139,9 +139,9 @@ bool TaskController::waypoint_generate()
     int rows=3;
     int cols=4;
     waypoints_.resize(rows);
-    waypoints_[0]={2.0,0.0,takeoff_height_,0.0};
-    waypoints_[1]={2.0,-2.0,takeoff_height_,0.0};//这yaw角范围是【-pi，pi】，他单位是弧度不太好算，就一直保持0.0吧
-    waypoints_[2]={0.0,-2.0,takeoff_height_,0.0};//这yaw角范围是【-pi，pi】，他单位是弧度不太好算，就一直保持0.0吧
+    waypoints_[0]={0.0,1.0,takeoff_height_,0.0};
+    waypoints_[1]={1.0,-1.0,takeoff_height_,0.0};//这yaw角范围是【-pi，pi】，他单位是弧度不太好算，就一直保持0.0吧
+    waypoints_[2]={0.0,-1.0,takeoff_height_,0.0};//这yaw角范围是【-pi，pi】，他单位是弧度不太好算，就一直保持0.0吧
     // for(auto& row : waypoints_)
     // {
     //     row.resize(cols);

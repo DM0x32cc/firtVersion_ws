@@ -161,7 +161,7 @@ set(BASE_SOURCES
   src/base_controller.cpp
 )
 
-# 添加可执行文件 - test_task_controller (主任务控制器)只有有main函数且有节点的文件才需要生成可执行文件，但他用到的文件都要加到后面的源文件列表中
+# 添加可执行文件 - offb_node (主任务控制器)只有有main函数且有节点的文件才需要生成可执行文件，但他用到的文件都要加到后面的源文件列表中
 add_executable(offb_node
   ${BASE_SOURCES}
   src/test_task_controller.cpp

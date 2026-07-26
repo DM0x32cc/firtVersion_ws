@@ -25,7 +25,6 @@ setup(
     entry_points={
         'console_scripts': [ 
             ' node_launch_flag = launch_flag.launch_flag:main',
-            ' node_launch_flag_false = launch_flag.launch_flag_false:main'
         ],
     },
 )
