@@ -2,5 +2,4 @@ build/
 install/
 log/
 .vscode/
-src/FAST_LIO_ROS2/
-src/livox_ros_driver2/
+
