@@ -170,7 +170,7 @@ add_executable(test_task_controller
 
 
 # 链接依赖库
-ament_target_dependencies(offboard_node
+ament_target_dependencies(test_task_controller
   rclcpp
   std_msgs
   geometry_msgs
