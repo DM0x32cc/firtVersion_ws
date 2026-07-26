@@ -167,10 +167,7 @@ add_executable(test_task_controller
   src/test_task_controller.cpp
 )
 
-# 添加可执行文件 - odom_to_pose_node (里程计转位姿)
-add_executable(odom_to_pose_node 
-  src/odom_to_pose_node.cpp
-)
+
 
 # 链接依赖库
 ament_target_dependencies(offboard_node
@@ -186,14 +183,6 @@ ament_target_dependencies(offboard_node
   Eigen3
 )
 
-ament_target_dependencies(odom_to_pose_node 
-  rclcpp 
-  nav_msgs 
-  geometry_msgs 
-  tf2 
-  tf2_ros 
-  tf2_geometry_msgs
-)
 
 # 安装可执行文件
 install(TARGETS
@@ -201,10 +190,6 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 # targets 是你要安装的目标名，destination则是你要安装到的目录，不过这里省略了，默认还要加上install/功能包名
-install(TARGETS 
-  odom_to_pose_node 
-  DESTINATION lib/${PROJECT_NAME}
-)
 
 # 安装头文件
 install(DIRECTORY
