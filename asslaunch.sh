@@ -15,5 +15,5 @@
 
 # ros2 launch mavros px4.launch fcu_url:=/dev/ttyACM0:921600 gcs_url:=udp://@192.168.43.6 &
 
-#ros2 topic pub --once /launch std_msgs/msg/Bool"{data: True}"
-#ros2 topic pub --once /launch std_msgs/msg/Bool"{data: False}"
+#ros2 topic pub --once /launch std_msgs/msg/Bool "{data: true}"
+#ros2 topic pub --once /launch std_msgs/msg/Bool "{data: false}"
