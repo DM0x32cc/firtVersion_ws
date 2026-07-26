@@ -79,7 +79,12 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
         auto_land();//紧急时才让飞控自己来，不然都用land()
         return true;
     }
-    
+    if(launch_flag_==false && flight_state_ != FlightState::INIT)
+    {
+        RCLCPP_INFO(get_logger(), "飞行途中收到launch_flag_ = false，自动降落");
+        auto_land();
+        return true;
+    }
     switch(flight_state_)
     {
         case FlightState::INIT:

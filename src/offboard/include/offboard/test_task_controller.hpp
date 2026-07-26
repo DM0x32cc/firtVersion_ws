@@ -33,8 +33,7 @@ protected:
     void check_position_stuck_protection();
     bool check_emergency_condition();
     void reset_position_stuck_detection();
-    // 发现障碍物函数
-    // void avoid_obstacles(){}
+   
 
 
     // 回调函数
