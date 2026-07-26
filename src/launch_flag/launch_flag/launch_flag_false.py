@@ -12,12 +12,12 @@ class LaunchFlagNode(Node):
 
     def timer_callback(self):
         msg=Bool()
-        msg.data=True
+        msg.data=False
         self.pub.publish(msg)
 
 def main(args=None):
     rclpy.init(args=args) #初始化rclpy
-    node = LaunchFlagNode("node_launch_flag") #创建节点对象
+    node = LaunchFlagNode("node_launch_flag_false") #创建节点对象
     rclpy.spin(node) #进入自旋状态，如果没有这个函数，程序会直接退出，这个发布者节点还没有发布信息，他就被销毁了
     node.destroy_node()                              # 销毁节点对象
     rclpy.shutdown()   

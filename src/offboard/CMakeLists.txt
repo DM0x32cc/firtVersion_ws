@@ -162,7 +162,7 @@ set(BASE_SOURCES
 )
 
 # 添加可执行文件 - test_task_controller (主任务控制器)只有有main函数且有节点的文件才需要生成可执行文件，但他用到的文件都要加到后面的源文件列表中
-add_executable(test_task_controller 
+add_executable(offb_node
   ${BASE_SOURCES}
   src/test_task_controller.cpp
 )
@@ -170,7 +170,7 @@ add_executable(test_task_controller
 
 
 # 链接依赖库
-ament_target_dependencies(test_task_controller
+ament_target_dependencies(offb_node
   rclcpp
   std_msgs
   geometry_msgs
@@ -186,7 +186,7 @@ ament_target_dependencies(test_task_controller
 
 # 安装可执行文件
 install(TARGETS
- test_task_controller
+ offb_node
   DESTINATION lib/${PROJECT_NAME}
 )
 # targets 是你要安装的目标名，destination则是你要安装到的目录，不过这里省略了，默认还要加上install/功能包名
