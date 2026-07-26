@@ -7,7 +7,7 @@ from std_msgs.msg import Bool
 class LaunchFlagNode(Node):
     def __init__(self,name):
         super().__init__(name)
-        self.pub=self.create_publisher(bool,"launch",10)
+        self.pub=self.create_publisher(Bool,"launch",10)
         self.timer=self.create_timer(0.1,self.timer_callback)
 
     def timer_callback(self):
