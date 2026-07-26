@@ -17,7 +17,7 @@ def generate_launch_description():
         )
     )
 
-    # 2. FAST-LIO 与点云转换节点
+    # 2. FAST-LIO 
     fast_lio_launch_dir = os.path.join(ws_root, 'src', 'FAST_LIO_ROS2', 'launch')
     fast_lio_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -26,12 +26,12 @@ def generate_launch_description():
         launch_arguments={'rviz': 'false'}.items()
     )
 
-    launch_LivoxToPointCloud2_node = Node(
-        package='pointcl',
-        executable='livox_to_pcl',
-        name='livox_to_pointcloud2',
-        output='screen'
-    )
+    # launch_LivoxToPointCloud2_node = Node(
+    #     package='pointcl',
+    #     executable='livox_to_pcl',
+    #     name='livox_to_pointcloud2',
+    #     output='screen'
+    # )
 
     # 3. Odom to Pose 节点
     launch_odom_to_pose_node = Node(
@@ -72,7 +72,7 @@ def generate_launch_description():
         # 3 秒后启动 FAST-LIO 和点云转换
         TimerAction(
             period=3.0,
-            actions=[fast_lio_launch, launch_LivoxToPointCloud2_node]
+            actions=[fast_lio_launch]
         ),
 
         # 6 秒后启动 OdomToPose
