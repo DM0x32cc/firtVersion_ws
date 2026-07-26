@@ -15,7 +15,7 @@ TaskController::TaskController() : BaseController("offb_node") /*, path_planner_
     takeoff_height_=this->get_parameter("takeoff_height").as_double();
     waypoint_threshold_=this->get_parameter("waypoint_threshold").as_double();
     waypoint_generate();
-   
+    RCLCPP_INFO(get_logger(), "Task controller initialized");
 }
 
 

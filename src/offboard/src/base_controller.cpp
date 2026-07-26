@@ -64,7 +64,7 @@ BaseController::BaseController(const std::string& node_name)
     timer_ = create_wall_timer(
         std::chrono::milliseconds(100),//设定定时器触发时间
         // std::bind(&BaseController::timer_callback, this));//这行代码是与下面含义相同的，下面是lambda表达式
-    [this]()//这是cpp传回调函数的方法，python里面是直接传的，这是定义了一个lambda函数，后续的毁掉函数都是这么传进去的！
+    [this]()   /*这是cpp传回调函数的方法，python里面是直接传的，这是定义了一个lambda函数，后续的毁掉函数都是这么传进去的！*/
             {
                 timer_callback();//这似乎要我们自己去定义？对对对，这是唯一一个给我们操作空间的多态可改函数
             });
