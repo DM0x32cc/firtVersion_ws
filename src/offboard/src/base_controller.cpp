@@ -101,11 +101,13 @@ void BaseController::arm_callback(const std::shared_future<std::shared_ptr<mavro
             RCLCPP_INFO(get_logger(), "无人机已解锁，hiahiahia！");
         } else {
             RCLCPP_ERROR(get_logger(), "无人机解锁失败，woc了，返回码: %d", result->result);
+            apply_arm_flag_ = false;
         }
     } catch (const std::exception& e) {
         RCLCPP_ERROR(get_logger(), "服务调用失败: %s", e.what());
+        apply_arm_flag_ = false;
     }
-    apply_arm_flag_ = false;
+
 }
 void BaseController::launch_callback(const std_msgs::msg::Bool::ConstSharedPtr& future)
 {
@@ -159,11 +161,13 @@ void BaseController::set_mode_callback(std::shared_future<std::shared_ptr<mavros
             RCLCPP_INFO(get_logger(), "已改变模式，当前模式：%s", current_state_.mode.c_str());
         } else {
             RCLCPP_ERROR(get_logger(), "改变模式失败，当前模式：%s", current_state_.mode.c_str());
+            apply_offboard_flag_=false;
         }
     } catch (const std::exception& e) {
         RCLCPP_ERROR(get_logger(), "服务调用失败: %s", e.what());
+        apply_offboard_flag_=false;
     }
-    apply_offboard_flag_=false;
+    
 }
 
 void BaseController::land()//怎么有两个函数？一个被注释了？
