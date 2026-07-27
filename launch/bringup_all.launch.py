@@ -84,7 +84,7 @@ def generate_launch_description():
         # 立即启动 Livox
         livox_launch,
 
-        # 3 秒后启动 FAST-LIO 和点云转换
+        # 3 秒后启动 FAST-LIO 
         TimerAction(
             period=3.0,
             actions=[fast_lio_launch]
