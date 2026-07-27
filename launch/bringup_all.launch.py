@@ -4,6 +4,7 @@ from launch.actions import IncludeLaunchDescription, TimerAction, RegisterEventH
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch_ros.actions import Node
 from ament_index_python.packages import get_package_share_directory
+from launch.launch_description_sources import FrontendLaunchDescriptionSource
 
 def generate_launch_description():
     current_dir = os.path.dirname(__file__)
@@ -51,16 +52,16 @@ def generate_launch_description():
 
     # 4. MAVROS
     mavros_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(               # ① 改为 PythonLaunchDescriptionSource
+        FrontendLaunchDescriptionSource(
             os.path.join(
                 get_package_share_directory('mavros'),
                 'launch',
-                'px4.launch.py'                     # ② 扩展名改为 .py
+                'px4.launch'#nimad，这是ros1的不知哦道哪个沙比ai
             )
         ),
-        launch_arguments={                           # ③ 去掉 .items()
-            'fcu_url': '/dev/ttyACM0:921600',
-            'gcs_url': 'udp://@192.168.137.161'
+        launch_arguments={
+            'fcu_url':'/dev/ttyACM0:921600',
+            # 'gcs_url' : 'udp://@192.168.43.6'
         }.items()
     )
 
