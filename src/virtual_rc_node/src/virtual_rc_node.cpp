@@ -7,13 +7,13 @@ public:
     VirtualRCNode()
     : Node("virtual_rc_node")
     {
-        // 创建 MANUAL_CONTROL 发布者
+        // 创建发布者
         publisher_ = this->create_publisher<mavros_msgs::msg::ManualControl>(
             "/mavros/manual_control/control", 10);
         
-        // 创建定时器，10-50Hz 均可，推荐 20Hz
+        // 创建定时器 10Hz (100ms)
         timer_ = this->create_wall_timer(
-            std::chrono::milliseconds(100),  // 20Hz
+            std::chrono::milliseconds(100),
             std::bind(&VirtualRCNode::publish_manual_control, this));
         
         RCLCPP_INFO(this->get_logger(), "Virtual RC Node Started");
@@ -24,17 +24,15 @@ private:
     {
         auto msg = mavros_msgs::msg::ManualControl();
         
-        // 所有通道设为 0，表示"有控制源但无操作"
-        msg.roll = 0.0;      // -1.0 ~ 1.0
-        msg.pitch = 0.0;     // -1.0 ~ 1.0
-        msg.yaw = 0.0;       // -1.0 ~ 1.0
-        msg.throttle = 0.0;  // -1.0 ~ 1.0
+        // ✅ 核心修改：使用 x, y, z, r 而不是 roll, pitch...
+        msg.x = 0;      // 左右 (Roll)
+        msg.y = 0;      // 前后 (Pitch)
+        msg.z = 0;      // 油门 (Throttle)
+        msg.r = 0;      // 偏航 (Yaw)
         
-        // 辅助通道（如需要）
-        msg.aux1 = 0.0;
-        msg.aux2 = 0.0;
-        msg.aux3 = 0.0;
-        msg.aux4 = 0.0;
+        // // ✅ 核心修改：初始化按钮和开关
+        // msg.buttons = 0;
+        // msg.switches = 0;
         
         publisher_->publish(msg);
     }
