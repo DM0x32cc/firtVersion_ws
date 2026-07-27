@@ -18,6 +18,14 @@ def generate_launch_description():
         )
     )
 
+    launch_virtual_rc_node = Node(
+            package='virtual_rc_node',
+            executable='virtual_rc_node',
+            name='virtual_rc_node',
+            output='screen'
+        )
+
+
     # 2. FAST-LIO 
     fast_lio_launch_dir = os.path.join(ws_root, 'src', 'FAST_LIO_ROS2', 'launch')
     fast_lio_launch = IncludeLaunchDescription(
@@ -81,7 +89,11 @@ def generate_launch_description():
 
     # 使用 TimerAction 串联启动，保持原有延时效果
     return LaunchDescription([
-        # 立即启动 Livox
+
+        # 最先发送虚拟信号
+        launch_virtual_rc_node,
+        
+        # 然后启动雷达驱动
         livox_launch,
 
         # 3 秒后启动 FAST-LIO 
