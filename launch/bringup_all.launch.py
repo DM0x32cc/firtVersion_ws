@@ -96,27 +96,27 @@ def generate_launch_description():
         # 然后启动雷达驱动
         livox_launch,
 
-        # 3 秒后启动 FAST-LIO 
+        # 4 秒后启动 FAST-LIO 
         TimerAction(
-            period=3.0,
+            period=4.0,
             actions=[fast_lio_launch]
         ),
 
-        # 6 秒后启动 OdomToPose
+        # 9 秒后启动 OdomToPose
         TimerAction(
-            period=6.0,
+            period=9.0,
             actions=[launch_odom_to_pose_node]
         ),
 
-        # 9 秒后启动 MAVROS
+        # 12 秒后启动 MAVROS
         TimerAction(
-            period=9.0,
+            period=12.0,
             actions=[mavros_launch]
         ),
 
-        # 12 秒后启动任务控制器
+        # 15 秒后启动任务控制器
         TimerAction(
-            period=12.0,
+            period=15.0,
             actions=[launch_task_controller_node]
         ),
     ])
