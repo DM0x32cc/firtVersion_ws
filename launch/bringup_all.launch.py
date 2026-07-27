@@ -101,22 +101,22 @@ def generate_launch_description():
             period=4.0,
             actions=[fast_lio_launch]
         ),
+        
+        # 12 秒后启动 MAVROS
+        TimerAction(
+            period=10.0,
+            actions=[mavros_launch]
+        ),
 
         # 9 秒后启动 OdomToPose
         TimerAction(
-            period=9.0,
+            period=20.0,
             actions=[launch_odom_to_pose_node]
-        ),
-
-        # 12 秒后启动 MAVROS
-        TimerAction(
-            period=12.0,
-            actions=[mavros_launch]
         ),
 
         # 15 秒后启动任务控制器
         TimerAction(
-            period=15.0,
+            period=27.0,
             actions=[launch_task_controller_node]
         ),
     ])
