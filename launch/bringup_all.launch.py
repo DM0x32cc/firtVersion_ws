@@ -31,7 +31,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(
             os.path.join(fast_lio_launch_dir, 'mapping.launch.py')
         ),
-        launch_arguments={'rviz': 'false'}
+        launch_arguments={'rviz': 'false'}.items()
     )
 
     # launch_LivoxToPointCloud2_node = Node(
@@ -61,7 +61,7 @@ def generate_launch_description():
         launch_arguments={                           # ③ 去掉 .items()
             'fcu_url': '/dev/ttyACM0:921600',
             'gcs_url': 'udp://@192.168.137.161'
-        }
+        }.items()
     )
 
     # mavros_launch = IncludeLaunchDescription(
