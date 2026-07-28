@@ -319,7 +319,9 @@ bool TaskController::tilt_land()
     // 静态变量记录降落状态
     static bool stage1_completed = false;  // 第一阶段是否完成
     static bool stage1_started = false;    // 第一阶段是否已开始
-    
+    static int  stage2_stuck_counter = 0;   //新增
+    static double stage2_last_z = -1.0;     //新增
+
     // 目标降落位置 (0, 0, 0)
     double target_x = 0.0;
     double target_y = 0.0;
@@ -334,17 +336,36 @@ bool TaskController::tilt_land()
     double horizontal_distance = sqrt(pow(current_x - target_x, 2) + pow(current_y - target_y, 2));
     
     // 检查是否已经降落完成
-    if (current_z < 0.08) {
+    if (current_z < 0.08 || (current_z < 0.15 && horizontal_distance < 0.08)) 
+    {
         RCLCPP_INFO(get_logger(), "降落完成！");
         // 重置状态变量以便下次使用
         stage1_completed = false;
         stage1_started = false;
-        return true;
+        return true;//这是唯一退出条件，但是太严苛了，后来已经放宽条件
     }
     
+    
+    // 新增整个 if 块，原始版本没有这段
+    // 这是全新阶段，当高度小于20cm时不强行要求45度了
+    if (current_z < 0.20) 
+    {
+        double near_vel_x = 0.0, near_vel_y = 0.0;
+        if (horizontal_distance > 0.03) 
+        {
+            double dir_x = (target_x - current_x) / horizontal_distance;
+            double dir_y = (target_y - current_y) / horizontal_distance;
+            double near_speed = std::min(0.3, horizontal_distance * 1.5);
+            near_vel_x = dir_x * near_speed;
+            near_vel_y = dir_y * near_speed;
+        }
+        publish_velocity_body(near_vel_x, near_vel_y, -0.20, 0.0);
+        return false;
+    }
+
     // 45度角降落的理想水平距离应该等于当前高度
     double ideal_horizontal_distance = current_z;  // 45度角条件
-    
+
     // 第一阶段：飞到45度线起点（只执行一次）
     if (!stage1_completed) {
         double position_tolerance = 0.05;  // 位置容差
@@ -385,7 +406,18 @@ bool TaskController::tilt_land()
         }
     }
     
-    
+    // 新增在第二阶段开头，我觉得这亨脊肋，没啥乱用，而且也不干扰代码，所以先留着把
+    if (stage2_last_z > 0 && std::abs(current_z - stage2_last_z) < 0.005) {
+        stage2_stuck_counter++;
+    } else {
+        stage2_stuck_counter = 0;
+    }
+    stage2_last_z = current_z;
+
+    if (stage2_stuck_counter > 60) {
+        publish_velocity_body(0.0, 0.0, -0.20, 0.0);
+        return false;
+    }
     // 第二阶段：沿45度线降落
     RCLCPP_INFO(get_logger(), "第二阶段：开始45度角降落");
     
