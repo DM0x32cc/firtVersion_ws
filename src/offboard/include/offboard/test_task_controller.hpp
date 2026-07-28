@@ -30,10 +30,7 @@ protected:
     bool waypoint_generate();//临时代替
     void switch_task(FlightState new_state);
     bool is_at_point(const double x, const double y, const double z) const ;
-    void check_position_stuck_protection();
     bool check_emergency_condition();
-    void reset_position_stuck_detection();
-   
 
 
     // 回调函数
@@ -73,6 +70,8 @@ protected:
     rclcpp::Time stuck_detection_time_;
     rclcpp::Time ignore_target_until_;
     bool ignoring_targets_ = false;
+    void check_position_stuck_protection();
+    void reset_position_stuck_detection();
     // 航点相关
     std::vector<std::vector<double>> waypoints_;//这是航点，我们要事先把他计算出来存着
     size_t current_waypoint_index_ = 0;//这是索引，我们用他来记录我们已经打到的航点

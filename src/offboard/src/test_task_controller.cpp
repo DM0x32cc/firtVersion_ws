@@ -1,7 +1,7 @@
 //cpp里面似乎是传指针的给spin的
 // 这是主流程，我们先打四个点，然后飞到每个点上面时，让他悬停个2.5秒再转一圈。
 #include "offboard/test_task_controller.hpp"
-
+#include <Eigen/Core>
 namespace offboard
 {
 
@@ -14,6 +14,14 @@ TaskController::TaskController() : BaseController("offb_node") /*, path_planner_
 
     takeoff_height_=this->get_parameter("takeoff_height").as_double();
     waypoint_threshold_=this->get_parameter("waypoint_threshold").as_double();
+    // 初始化位置停留保护机制变量
+    last_position_time_ = this->get_clock()->now();
+    last_position_x_ = 0.0;
+    last_position_y_ = 0.0;
+    last_position_z_ = 0.0;
+    position_stuck_detected_ = false;
+    ignoring_targets_ = false;
+
     waypoint_generate();
     RCLCPP_INFO(get_logger(), "Task controller initialized");
 }
