@@ -91,32 +91,33 @@ def generate_launch_description():
     return LaunchDescription([
 
         # 最先发送虚拟信号
-        launch_virtual_rc_node,
+        # launch_virtual_rc_node,
         
         # 然后启动雷达驱动
         livox_launch,
 
         # 4 秒后启动 FAST-LIO 
         TimerAction(
-            period=4.0,
+            period=10.0,
             actions=[fast_lio_launch]
         ),
         
-        # 12 秒后启动 MAVROS
-        TimerAction(
-            period=10.0,
-            actions=[mavros_launch]
-        ),
-
         # 9 秒后启动 OdomToPose
         TimerAction(
             period=17.0,
             actions=[launch_odom_to_pose_node]
         ),
 
+        # 12 秒后启动 MAVROS
+        TimerAction(
+            period=24.0,
+            actions=[mavros_launch]
+        ),
+
+
         # 15 秒后启动任务控制器
         TimerAction(
-            period=30.0,
+            period=44.0,
             actions=[launch_task_controller_node]
         ),
     ])
