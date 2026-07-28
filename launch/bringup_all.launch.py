@@ -110,13 +110,13 @@ def generate_launch_description():
 
         # 9 秒后启动 OdomToPose
         TimerAction(
-            period=20.0,
+            period=17.0,
             actions=[launch_odom_to_pose_node]
         ),
 
         # 15 秒后启动任务控制器
         TimerAction(
-            period=27.0,
+            period=30.0,
             actions=[launch_task_controller_node]
         ),
     ])
