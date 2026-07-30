@@ -29,13 +29,19 @@ protected:
     // 通用任务函数
     void execute_waypoint_mission();
     bool tilt_land();
-    
+    void return_home();
+
     // task1 任务函数
     void hover_3s();
     void fly_to_point();
     void companion_fly();
     void do_drop();
-    void return_home();
+    void search_car();
+    void approach_car();
+    void land_on_car();
+    void stay_on_car();
+    void takeoff_from_car();
+
 
     void switch_task(FlightState new_state);
     bool is_at_point(const double x, const double y, const double z) const ;
@@ -48,11 +54,10 @@ protected:
     // 工具函数
     void compress_waypoints(std::vector<std::vector<double>>& waypoints);//航点压缩非常好的一个工具
 
-    // 订阅话题： target
+    // 订阅话题： target，就是摄像头看见的对象
     rclcpp::Subscription<msg_tool::msg::Color>::SharedPtr target_sub;
     // 订阅话题: 获得小车状态
     rclcpp::Subscription<msg_tool::msg::CarState>::SharedPtr car_state_sub;
-    // bool approach();
 
     // 订阅话题消息存储
         // 视觉识别小车位置
@@ -65,13 +70,21 @@ protected:
 
 
     // 伴飞相关
-    bool target_data_ready_=false;
-    offboard::PIDController pid_x_;   // 前后方向 PID，输入: e_filt_x，输出: 前后修正速度
-    offboard::PIDController pid_y_;   // 左右方向 PID，输入: e_filt_y，输出: 左右修正速度
+    bool target_data_ready_=false;  //help you check
+    offboard::PIDController cpfly_pid_x_;   // 前后方向 PID，输入: e_filt_x，输出: 前后修正速度
+    offboard::PIDController cpfly_pid_y_;   // 左右方向 PID，输入: e_filt_y，输出: 左右修正速度
     bool cpfly_takedown_ = false;
 
     // drop相关
     bool is_drop = false;
+
+    // 降落on car 上相关
+    int approach_stable_count_ = 0；
+    int touch_count_ = 0;
+    double land_last_z_;
+    offboard::PIDController land_pid_x_;
+    offboard::PIDController land_pid_y_;
+    rclcpp::Time stay_start_time_;
     // 运行参数以及数据
     struct ProcessedTarget 
     {
