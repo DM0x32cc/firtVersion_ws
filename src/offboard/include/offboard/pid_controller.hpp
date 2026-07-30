@@ -12,6 +12,7 @@ public:
 
     double compute(double error, double dt) //error指的是误差，dt是时间间隔
     {
+        if(dt == 0.0) return 0.0;
         integral_ += error * dt;
         integral_ = std::clamp(integral_, -i_max_, i_max_);
         double derivative = (error - prev_error_) / dt;
