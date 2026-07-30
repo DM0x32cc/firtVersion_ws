@@ -25,8 +25,9 @@
 #include <functional>
 #include <memory>
 #include <chrono>
-#include "offboard/pid_controller.hpp"
+#include "offboard/pid_controller.hpp"//very good!
 #include "msg_tool/msg/flight_info.hpp"//这个找不到，似乎是因为我们没有编译
+#include <cmath>
 
 
 namespace offboard
@@ -34,12 +35,24 @@ namespace offboard
 
 enum class FlightState//枚举类型
 {
+    // 通用飞行状态
     INIT,//初始化阶段。等待起飞授权（launch_flag_ == true）（这是设计目标，但此时还没有在base_controller里面实现）与障碍物信息接收完毕。满足条件后进入 TAKEOFF。
     TAKEOFF,//起飞阶段。无人机从当前点垂直爬升到预设高度（如 1.2m），完成后转入 WAYPOINT。
     WAYPOINT,//进入航点模式，会根据你的点去飞行。
     APPROACH,//	回家阶段——从最后一个航点飞向目标降落点上空，调整位置和姿态，为倾斜降落做准备，
     TILTLAND,//倾斜降落阶段。无人机在指定区域执行前倾降落（可能是抓取或特殊降落），完成后转入 LAND。
-    LAND//	最终着陆锁桨，电机停转，任务结束
+    LAND,//	最终着陆锁桨，电机停转，任务结束
+    // 特殊飞行状态
+    HOVER_3S,//（悬停3秒）
+    FLY_TO_MIDPOINT,//(飞到中点等小车)
+    COMPANION_FLIGHT,//（伴飞）
+    DROP,//（抛投）
+    RETURN_HOME,//（返航回起降点）
+    SEARCH_CAR,//（搜索小车）
+    APPROACH_CAR,//（接近小车）
+    LAND_ON_CAR,//（降落到小车平台）
+    STAY_ON_CAR,//（停留5秒）
+    TAKEOFF_FROM_CAR//（从小车平台起飞）
 };
 
 // 悬停状态枚举
@@ -152,6 +165,8 @@ protected:
     mutable bool apply_offboard_flag_=false;//家这个mutable代表在函数末尾加上const的函数也可以改变他
     bool apply_arm_flag_=false;
     bool apply_disarm_flag_=false;
+    // 降落时切换状态标志位
+    bool mode_switched_for_landing_ = false;
     // 状态变量
     FlightState flight_state_ = FlightState::INIT;
     mavros_msgs::msg::State current_state_;//mavros
@@ -193,7 +208,7 @@ protected:
     double last_cross_err_y_ = 0.0;
     rclcpp::Time last_cross_time_ = this->get_clock()->now();
 
-
+    rclcpp::Time last_velo_pid_time_ = this->get_clock()->now();
     rclcpp::Time last_time_ = this->get_clock()->now();
     
     // 悬停相关状态

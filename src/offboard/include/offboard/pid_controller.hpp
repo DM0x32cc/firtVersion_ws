@@ -10,7 +10,8 @@ public:
     PIDController(double kp, double ki, double kd,double i_max = 0.6 )
         : kp_(kp), ki_(ki), kd_(kd), prev_error_(0.0), integral_(0.0), i_max_(i_max) {}
 
-    double compute(double error, double dt) {
+    double compute(double error, double dt) //error指的是误差，dt是时间间隔
+    {
         integral_ += error * dt;
         integral_ = std::clamp(integral_, -i_max_, i_max_);
         double derivative = (error - prev_error_) / dt;

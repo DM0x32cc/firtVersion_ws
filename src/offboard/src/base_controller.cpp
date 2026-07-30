@@ -170,64 +170,161 @@ void BaseController::set_mode_callback(std::shared_future<std::shared_ptr<mavros
     
 }
 
-void BaseController::land()//怎么有两个函数？一个被注释了？
+// ai生成全新的land（）函数
+void BaseController::land()
 {
-    if(current_state_.armed==true)
-    {
-        publish_velocity_body(0.0, 0.0, -0.3, 0.0);
-    }
-    else
+    if (current_state_.armed == false)
     {
         publish_velocity_body(0.0, 0.0, 0.0, 0.0);
         apply_disarm_flag_ = false;
+        mode_switched_for_landing_ = false;
         return;
     }
 
     double altitude = local_position_.pose.position.z;
-//    RCLCPP_INFO(get_logger(), "当前高度: %.3f", altitude);
-    if (altitude < 0.03) 
+
+    if (altitude >= 0.08)
     {
-        
-        if (arming_client_->service_is_ready()) 
+        publish_velocity_body(0.0, 0.0, -0.3, 0.0);
+        return;
+    }
+
+    if (!mode_switched_for_landing_)
+    {
+        if (!set_mode_client_->wait_for_service(std::chrono::seconds(1)))
         {
-            if (apply_disarm_flag_ == true) return;   // 标志位防重复
-            apply_disarm_flag_ = true;                // 上锁请求已发出
-            auto request = std::make_shared<mavros_msgs::srv::CommandBool::Request>();
-            request->value = false;                   // false = disarm
-            arming_client_->async_send_request(
-                request,
-                [this](std::shared_future<std::shared_ptr<mavros_msgs::srv::CommandBool::Response>> future) 
+            RCLCPP_ERROR(get_logger(), "上锁前切换模式失败，服务不可用");
+            return;
+        }
+
+        auto request = std::make_shared<mavros_msgs::srv::SetMode::Request>();
+        request->custom_mode = "STABILIZED";
+
+        set_mode_client_->async_send_request(
+            request,
+            [this](std::shared_future<std::shared_ptr<mavros_msgs::srv::SetMode::Response>> future)
+            {
+                try
                 {
-                    try 
+                    auto result = future.get();
+                    if (result->mode_sent)
                     {
-                        auto result = future.get();
-                        if (result->success)
-                        {
-                            RCLCPP_INFO(get_logger(), "无人机已上锁（通过 CommandBool）");
-                            //庙在妙哉！成功之后不重置，因为成功了，那么就保持true状态，这样就算状态没有及时更新，也没事，不会再次申请，这样子就消除了延迟的影响
-                        } 
-                        else 
-                        {
-                            RCLCPP_ERROR(get_logger(), "无人机上锁失败（CommandBool），飞控拒绝");
-                            apply_disarm_flag_ = false;
-                        }
-                    } 
-                    catch (const std::exception& e) 
+                        RCLCPP_INFO(get_logger(), "已切换到 STABILIZED，准备上锁");
+                    }
+                }
+                catch (const std::exception& e)
+                {
+                    RCLCPP_ERROR(get_logger(), "切换模式失败: %s", e.what());
+                }
+            });
+
+        mode_switched_for_landing_ = true;
+        publish_velocity_body(0.0, 0.0, 0.0, 0.0);
+        return;
+    }
+
+    if (!apply_disarm_flag_)
+    {
+        if (!arming_client_->service_is_ready())
+        {
+            RCLCPP_WARN(get_logger(), "上锁服务不可用");
+            return;
+        }
+
+        apply_disarm_flag_ = true;
+
+        auto request = std::make_shared<mavros_msgs::srv::CommandBool::Request>();
+        request->value = false;
+
+        arming_client_->async_send_request(
+            request,
+            [this](const std::shared_future<std::shared_ptr<mavros_msgs::srv::CommandBool::Response>> future)
+            {
+                try
+                {
+                    auto result = future.get();
+                    if (result->success)
                     {
-                        RCLCPP_ERROR(get_logger(), "上锁服务调用失败: %s", e.what());
+                        RCLCPP_INFO(get_logger(), "无人机已上锁");
+                    }
+                    else
+                    {
+                        RCLCPP_ERROR(get_logger(), "上锁被飞控拒绝，返回码: %d", result->result);
                         apply_disarm_flag_ = false;
                     }
-                    
-                    
                 }
-            );
-        } 
-        else 
-        {
-            RCLCPP_WARN(get_logger(), "上锁服务不可用（CommandBool）");
-        }
+                catch (const std::exception& e)
+                {
+                    RCLCPP_ERROR(get_logger(), "上锁调用失败: %s", e.what());
+                    apply_disarm_flag_ = false;
+                }
+            });
     }
+
+    publish_velocity_body(0.0, 0.0, 0.0, 0.0);
 }
+
+// 这边改一下吧，欸，先留个眼睛！！！还没有改
+// void BaseController::land()//怎么有两个函数？一个被注释了？
+// {
+//     if(current_state_.armed==true)
+//     {
+//         publish_velocity_body(0.0, 0.0, -0.3, 0.0);
+//     }
+//     else
+//     {
+//         publish_velocity_body(0.0, 0.0, 0.0, 0.0);
+//         apply_disarm_flag_ = false;
+//         return;
+//     }
+
+//     double altitude = local_position_.pose.position.z;
+// //    RCLCPP_INFO(get_logger(), "当前高度: %.3f", altitude);
+//     if (altitude < 0.05) 
+//     {
+        
+//         if (arming_client_->service_is_ready()) 
+//         {
+//             if (apply_disarm_flag_ == true) return;   // 标志位防重复
+//             apply_disarm_flag_ = true;                // 上锁请求已发出
+//             auto request = std::make_shared<mavros_msgs::srv::CommandBool::Request>();
+//             request->value = false;                   // false = disarm
+//             arming_client_->async_send_request(
+//                 request,
+//                 [this](std::shared_future<std::shared_ptr<mavros_msgs::srv::CommandBool::Response>> future) 
+//                 {
+//                     try 
+//                     {
+//                         auto result = future.get();
+//                         if (result->success)
+//                         {
+//                             RCLCPP_INFO(get_logger(), "无人机已上锁（通过 CommandBool）");
+//                             //庙在妙哉！成功之后不重置，因为成功了，那么就保持true状态，这样就算状态没有及时更新，也没事，不会再次申请，这样子就消除了延迟的影响
+//                         } 
+//                         else 
+//                         {
+//                             RCLCPP_ERROR(get_logger(), "无人机上锁失败（CommandBool），飞控拒绝");
+//                             apply_disarm_flag_ = false;
+//                         }
+//                     } 
+//                     catch (const std::exception& e) 
+//                     {
+//                         RCLCPP_ERROR(get_logger(), "上锁服务调用失败: %s", e.what());
+//                         apply_disarm_flag_ = false;
+//                     }
+                    
+                    
+//                 }
+//             );
+//         } 
+//         else 
+//         {
+//             RCLCPP_WARN(get_logger(), "上锁服务不可用（CommandBool）");
+//         }
+//     }
+// }
+
+
 // the version below seems only decrease the  threshold，我去，而且还用了commandbool
 // void BaseController::land()
 // {
@@ -301,12 +398,12 @@ void BaseController::publish_position_setpoint(const double x, const double y, c
     msg.header.stamp = this->get_clock()->now();
     msg.header.frame_id = "map";
 
-    msg.pose.position.x = x;
+    msg.pose.position.x = x;   //米
     msg.pose.position.y = y;
     msg.pose.position.z = z;
 
     tf2::Quaternion q;//这是欧拉角转四元数了
-    q.setRPY(0, 0, yaw);
+    q.setRPY(0, 0, yaw);    //弧度
     msg.pose.orientation.x = q.x();
     msg.pose.orientation.y = q.y();
     msg.pose.orientation.z = q.z();

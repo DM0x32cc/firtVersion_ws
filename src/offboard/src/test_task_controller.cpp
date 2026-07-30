@@ -5,15 +5,19 @@
 namespace offboard
 {
 
-TaskController::TaskController() : BaseController("offb_node") /*, path_planner_(nullptr), obstacles_received_(false), path_planned_(false)*/
+TaskController::TaskController() : BaseController("offb_node"), pid_x_(1.0, 0.3, 0.0, 0.5),  
+            pid_y_(1.0, 0.3, 0.0, 0.5)// kp=1, ki=0.3, kd=0, 积分上限 0.5m/s
+            /*, path_planner_(nullptr), obstacles_received_(false), path_planned_(false)*/
 {
     
-    this->declare_parameter("takeoff_height", 1.0);
+    this->declare_parameter("takeoff_height", 1.5);
     this->declare_parameter("waypoint_threshold", 0.1);//到点阈值
-    HoverConfig wp_config_;
+    this->declare_parameter("filter_param_company",0.5);
 
     takeoff_height_=this->get_parameter("takeoff_height").as_double();
     waypoint_threshold_=this->get_parameter("waypoint_threshold").as_double();
+    filter_param_company = this ->get_parameter("filter_param_company").as_double();
+
     // 初始化位置停留保护机制变量
     last_position_time_ = this->get_clock()->now();
     last_position_x_ = 0.0;
@@ -21,11 +25,52 @@ TaskController::TaskController() : BaseController("offb_node") /*, path_planner_
     last_position_z_ = 0.0;
     position_stuck_detected_ = false;
     ignoring_targets_ = false;
+    target_data_ready_ = false;
+    bool cpfly_takedown_ = false;
+    bool is_drop = false;
 
-    waypoint_generate();
+    target_sub = create_subscription<msg_tool::msg::Color>(
+        "/target", qos_best_effort,
+        [this](const msg_tool::msg::Color::ConstSharedPtr& msg){
+            target_callback(msg);
+        });
+    car_state_sub = create_subscription<msg_tool::msg::CarState>(
+        "/car_state",qos_best_effort,
+        [this](const msg_tool::msg::CarState::ConstSharedPtr& msg){
+            car_state_callback(msg);
+        });
+    
+    
     RCLCPP_INFO(get_logger(), "Task controller initialized");
 }
 
+void TaskController::target_callback(const msg_tool::msg::Color::ConstSharedPtr& msg)//先不用世界坐标系,先滤波
+{
+    static float last_delta_x_=0,last_delta_y_ = 0;
+    target_msg_ = *msg;
+    if (!target_data_ready_) {
+        target_data_ready_ = true;
+        last_delta_x_= target_msg_.delta_x;
+        last_delta_y_ = target_msg_.delta_y;
+        RCLCPP_INFO(get_logger(), "首次收到目标检测数据");
+    }
+    target_msg_.delta_x = filter_param_company*last_delta_x_ + (1.0f-filter_param_company)*target_msg_.delta_x;
+    target_msg_.delta_y = filter_param_company*last_delta_y_ + (1.0f-filter_param_company)*target_msg_.delta_y;
+    last_delta_x_ = target_msg_.delta_x;   // ← 存下这次的滤波结果
+    last_delta_y_ = target_msg_.delta_y;   // ← 下一次来的时候用
+    // 我想到一个东西，反正最终去参与PID的是距离差，那么如果我们想实在想把这个无人机的抖动与小车的抖动分离的话，
+    // 那我们其实可以在回调函数里面直接进行分离，就接收到摄像头检查这的距离差之后，先把它转到10呃市里头报一下，
+    // 然后进行滤波，滤波完之后再拿当前位置减去滤波之后结果就可以得到，依旧得到这个J绝差了。啊我们现在是直接拿到
+    // 距离差滤波，然后这个只是多了一步，所以说想改的话是非常简单的，一点都不难
+}
+
+void TaskController::car_state_callback(const msg_tool::msg::CarState::ConstSharedPtr& msg)
+{
+    car_speed_x_=msg->speed*std::cos(msg->deviation_angle);//这是对的
+    car_speed_y_=msg->speed*std::sin(msg->deviation_angle);
+    // 机头不转可太方便了!,这样小车的速度矢量直接加上去即可!
+    deviation_angle_ = msg->deviation_angle;
+}
 
 void TaskController::timer_callback()
 {
@@ -46,37 +91,67 @@ void TaskController::timer_callback()
     
     task_state_pub();// 发布消息，这波应该由地面站来接收
 
-    switch (flight_state_) 
+    if (current_task_id_ == 1) 
     {
-        case FlightState::INIT://这里后续设计路径规划时，可以增加下waypoints_是否生成完毕,让相关函数传一个标识。
-            publish_position_setpoint(//就一直先发着，确保丝滑切换
-                local_position_.pose.position.x,
-                local_position_.pose.position.y,
-                local_position_.pose.position.z,
-                0.0);
-            break;
-
-        case FlightState::TAKEOFF:
-            publish_position_setpoint(0,0,takeoff_height_,0);//这种消息就要不停的发送
-            break;
-
-        case FlightState::WAYPOINT:
-            execute_waypoint_mission();
-            break;
-        // case FlightState::APPROACH://不需要这个状态
-            
-        case FlightState::TILTLAND:
-            if(tilt_land()) 
-            switch_task(FlightState::LAND);
-            break;
-
-        case FlightState::LAND:
-            land();
-            break;
-        default:
+        switch (flight_state_)
+        {
+            case FlightState::INIT://这里后续设计路径规划时，可以增加下waypoints_是否生成完毕,让相关函数传一个标识。
+                publish_position_setpoint(//就一直先发着，确保丝滑切换
+                    local_position_.pose.position.x,
+                    local_position_.pose.position.y,
+                    local_position_.pose.position.z,
+                    0.0);
+                break;
+            case FlightState::TAKEOFF:
+                publish_position_setpoint(0,0,takeoff_height_,0);//这种消息就要不停的发送
+                break;
+            case FlightState::HOVER_3S:     hover_3s(); break;      // 新增
+            case FlightState::FLY_TO_MIDPOINT: fly_to_point(); break;
+            case FlightState::COMPANION:    companion_fly(); break; // 新增
+            case FlightState::DROP:         do_drop(); break;       // 新增
+            case FlightState::RETURN_HOME:  return_home(); break;   // 新增
+            case FlightState::TILTLAND:     
+                if(tilt_land()) 
+                switch_task(FlightState::LAND);
+                break;
+            case FlightState::LAND:         
+                land(); 
+                break;
+            default:
             RCLCPP_INFO(get_logger(), "我去！未知飞行状态？！你干哪里来了？");
+        }
     }
-
+    else if(current_task_id_ == 2)
+    {
+        switch(flight_state_)
+        {
+            case FlightState::INIT://这里后续设计路径规划时，可以增加下waypoints_是否生成完毕,让相关函数传一个标识。
+                publish_position_setpoint(//就一直先发着，确保丝滑切换
+                    local_position_.pose.position.x,
+                    local_position_.pose.position.y,
+                    local_position_.pose.position.z,
+                    0.0);
+                break;
+            case FlightState::TAKEOFF:
+                publish_position_setpoint(0,0,takeoff_height_,0);//这种消息就要不停的发送
+                break;
+            case FlightState::SEARCH_CAR:   search_car(); break;       // 新增
+            case FlightState::APPROACH_CAR: approach_car(); break;     // 新增
+            case FlightState::LAND_ON_CAR:  land_on_car(); break;      // 新增
+            case FlightState::STAY_ON_CAR:  stay_on_car(); break;      // 新增
+            case FlightState::TAKEOFF_CAR:  takeoff_from_car(); break; // 新增
+            case FlightState::RETURN_HOME:  return_home(); break;
+            case FlightState::TILTLAND:     
+                if(tilt_land()) 
+                switch_task(FlightState::LAND);
+                break;
+            case FlightState::LAND:         
+                land(); 
+                break;
+            default:
+            RCLCPP_INFO(get_logger(), "我去！未知飞行状态？！你干哪里来了？");
+        }
+    }
 }
 
 bool TaskController::check_task_switch_conditions()//return true代表着是切换state了,没有切换时一律return false（默认也是如此）
@@ -93,8 +168,11 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
         auto_land();
         return true;
     }
-    switch(flight_state_)
+
+    if(current_task_id_==1)
     {
+        switch(flight_state_)
+        {
         case FlightState::INIT:
             if(launch_flag_ == false ) break;
             if( current_state_.mode!="OFFBOARD")
@@ -116,50 +194,192 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
                 return true;
             }
             break;
-
         case FlightState::TAKEOFF:
-            if(std::abs(local_position_.pose.position.z-takeoff_height_)<=waypoint_threshold_)
+            if(std::abs(local_position_.pose.position.x - takeoff_height_)< waypoint_threshold_)
             {
-                switch_task(FlightState::WAYPOINT);
+                start_hover(3.0);
+                switch_task(FlightState::HOVER_3S);   // 进入悬停3s
                 return true;
-            }   
+            } 
             break;
-
-        case FlightState::WAYPOINT:
-            if(current_waypoint_index_ >= waypoints_.size())
+        case FlightState::HOVER_3S:
+            if (update_hover()) //这个随便调哟in，三s一道才会返回true
+            {                         // 每帧检查，返回true=时间到
+                switch_task(FlightState::FLY_TO_MIDPOINT);      // 进入伴飞
+                return true;
+            }
+            break;
+        case FlightState::FLY_TO_MIDPOINT :
+            if(distance_to_target(0.875,-0.375,takeoff_height_) < 0.15)//如果太慢可以放大这个阈值,反正这不用太精确
+            {
+                switch_task(FlightState::COMPANION_FLIGHT)
+                return true;
+            }
+            break;
+        case FlightState::COMPANION_FLIGHT :
+            if(std::hypot(local_position_.pose.position.x-2.375,local_position_.pose.position.y-1.875) < 0.15)//只算水平距离
+            {
+                switch_task(FlightState::DROP);
+                return true;
+            }
+            break;
+        case FLightState::DROP:
+            if(is_drop == true)
+            {
+                switch_task(FlightState::RETURN_HOME);
+                return true;
+            }
+            break;
+        case FlightState::RETURN_HOME:
+            if(is_at_point(0.0,-1.875,1.5))
             {
                 switch_task(FlightState::TILTLAND);
                 return true;
             }
+            break;
+        case FlightState::TILTLAND:
+            break;
+        default:
+            break;
+        }
+    }
+    else if(current_task_id_==2)
+    {
+        switch(flight_state_)
+        {
+        case FlightState::INIT:
+            if(launch_flag_ == false ) break;
+            if( current_state_.mode!="OFFBOARD")
+            {
+                if(apply_offboard_flag_ == true) break;
+                engage_offboard_mode();
+                RCLCPP_INFO(get_logger(), "申请进入OFFBOARD模式");
+                return false;
+            }
+            if(current_state_.armed==false)
+            {
+                if(apply_arm_flag_ == true) break;
+                arm();//这个如果解锁不成功会不断重试的，所以无需加上if判断
+                return false;
+            }
+            else
+            {
+                switch_task(FlightState::TAKEOFF);
+                return true;
+            }
+            break;
+        case FlightState::TAKEOFF:
+            
             break;
 
         case FlightState::TILTLAND:
             break;
         default:
             break;
+        }
     }
-    
     return false;
 }
 
-bool TaskController::waypoint_generate()
+void  TaskController::hover_3s()
 {
-    int rows=3;
-    int cols=4;
-    waypoints_.resize(rows);
-    waypoints_[0]={0.0,1.0,takeoff_height_,0.0};
-    waypoints_[1]={1.0,-1.0,takeoff_height_,0.0};//这yaw角范围是【-pi，pi】，他单位是弧度不太好算，就一直保持0.0吧
-    waypoints_[2]={0.0,-1.0,takeoff_height_,0.0};//这yaw角范围是【-pi，pi】，他单位是弧度不太好算，就一直保持0.0吧
-    // for(auto& row : waypoints_)
-    // {
-    //     row.resize(cols);
-    // }
-    return true;
+    update_hover();
 }
+void fly_to_point()
+{
+    publish_position_setpoint(0.875,-0.375,takeoff_height_,0.0);
+}
+
+void companion_fly()
+{
+    // 如果中途丢失目标怎么处理？？？？？？？？没想好我曹了
+    if(target_msg_.detected == false)//原地悬停，不能回飞
+    {
+        publish_position_setpoint(local_position_.pose.position.x,local_position_.pose.position.y,1.5);
+        return;
+    }
+    auto now = this->get_clock()->now();
+    double dt = (now - last_velo_pid_time_).seconds();
+    // 这时候可以开始处理了，true，已经收到消息
+    double vx_pid = pid_x_.compute(target_msg_.delta_x, dt);   // 前后速度,这个方向可以直接用,因为机头方向不变
+    double vy_pid = pid_y_.compute(target_msg_.delta_y, dt);   // 左右速度
+    // 这边需要提前降落，所以加上判断逻辑
+    
+    if(distance_to_target(3.125,-1.125,takeoff_height_) < 0.20) cpfly_takedown_ = true;
+    if(cpfly_takedown_ == true)
+    {
+        double vz_cmd = 1.5 * (1.10 - local_position_.pose.position.z );    // 高度纯 P
+    }
+    else
+    {
+        double vz_cmd = 1.5 * (1.50 - local_position_.pose.position.z );   // 高度纯 P
+    }
+    last_velo_pid_time_ =now;
+    // 加上前馈速度
+    double vx_cmd = vx_pid + car_speed_x_;
+    double vy_cmd = vy_pid + car_speed_y_;
+    publish_velocity_body(vx_cmd,vy_cmd,vz_cmd,0.0);
+}
+void do_drop()
+{
+    if(target_msg_.detected == false)
+    {
+        publish_position_setpoint(0.875,-0.375,takeoff_height_,0.0);
+        return;
+    }
+    auto now = this->get_clock()->now();
+    double dt = (now - last_velo_pid_time_).seconds();
+    // 这时候可以开始处理了，true，已经收到消息
+    double vx_pid = pid_x_.compute(target_msg_.delta_x, dt);   // 前后速度,这个方向可以直接用,因为机头方向不变
+    double vy_pid = pid_y_.compute(target_msg_.delta_y, dt);   // 左右速度
+    // 这边需要提前降落，所以加上判断逻辑
+    double vz_cmd = 1.5 * (1.10 - local_position_.pose.position.z );   // 高度纯 P
+    last_velo_pid_time_ =now;
+    // 加上前馈速度
+    double vx_cmd = vx_pid + car_speed_x_;
+    double vy_cmd = vy_pid + car_speed_y_;
+    publish_velocity_body(vx_cmd,vy_cmd,vz_cmd,0.0);
+    // 这里投掷的时候，要判断距离小到一定程度才可以
+    if(std::hypot(target_msg_.delata_x,target_msg_.delata_x) < 0.07)
+    {
+        //执行投掷
+        is_drop=true;
+    }
+}
+
+void return_home()
+{
+    const auto &pos = local_position_.pose.position;
+    // 起点 = 当前位置
+    double start_x = pos.x;
+    double start_y = pos.y;
+    double start_z = pos.z;
+    if(!is_at_point(start_x,start_y,1.5))
+    {
+        publish_position_setpoint(start_x,start_y,1.5);
+        return;
+    }
+
+    // 终点 = 你要飞去的固定点（例如从起飞点飞到前方 10m，高度 5m）
+    double end_x = 0.0;
+    double end_y = -1.875;
+    double end_z = 1.5;   // NED 坐标系，负值 = 向上
+
+    publish_position_setpoint_trajectory(
+        start_x, start_y, start_z,
+        end_x, end_y, end_z,
+        0);
+}
+
 void TaskController::switch_task(FlightState new_state)
 {
     if (new_state == flight_state_) {
         return;
+    }
+    if (new_state == FlightState::INIT) //这没事阿，反正基本不会有人调用这个吧？？？
+    {
+        apply_disarm_flag_ = false;      // ← 新飞行开始，重置上锁标志
+        mode_switched_for_landing_ = false;  // ← 加这行
     }
     RCLCPP_INFO(get_logger(), "切换任务: 从 %d 到 %d",
                 static_cast<int>(flight_state_),
@@ -170,132 +390,13 @@ void TaskController::switch_task(FlightState new_state)
 
 bool TaskController::check_emergency_condition()
 {
-    if(std::abs(local_position_.pose.position.x) >= 7 ||
-        std::abs(local_position_.pose.position.y) >= 7 ||
+    if(std::abs(local_position_.pose.position.x) >= 9 ||
+        std::abs(local_position_.pose.position.y) >= 9 ||
         std::abs(local_position_.pose.position.z) >= 2.5){
         RCLCPP_INFO(get_logger(), "检测到紧急情况，位置超出范围，自动降落");
         return true;
     }
     return false;
-}
-
-
-void TaskController::execute_waypoint_mission()//学习一下思路，我们只需在开始之前把航点计算出来就行了，
-{/*为什么不让飞机自己飞，而是说我控制他去飞呢？*/
-    if (current_waypoint_index_ >= waypoints_.size()) {//检查是否遍历完全
-        return;
-    }
-    
-    const auto& current_waypoint = waypoints_[current_waypoint_index_];//引用？
-    
-    // 检查位置停留保护机制
-    check_position_stuck_protection();//这对于我们目前单纯航点飞行没有用，因为这绝对不会被卡住的
-    
-    // // 如果当前有目标并且未处理，且不在忽略目标状态，则优先处理目标
-    // if (target_msg_.detected && !ignoring_targets_) {
-    //     approach();
-    //     return;  // 这return确保一直在approach这里，不执行下面的航点任务，approach()里面在一直发送消息，不用害怕，
-    // }//我们暂时用不着
-    
-    // 确定航线的起点
-    double start_x, start_y, start_z;
-    
-    if (current_waypoint_index_ == 0) {
-        // 第一个航点，使用当前位置作为起点
-        start_x = 0;
-        start_y = 0;
-        start_z = takeoff_height_;
-    } else {
-        // 使用上一个航点作为起点
-        const auto& previous_waypoint = waypoints_[current_waypoint_index_ - 1];
-        start_x = previous_waypoint[0];
-        start_y = previous_waypoint[1];
-        start_z = previous_waypoint[2];
-    }
-    
-    // 当前航点作为终点
-    double end_x = current_waypoint[0];
-    double end_y = current_waypoint[1];
-    double end_z = current_waypoint[2];
-    double target_yaw = current_waypoint[3];
-    
-    // 使用基于航线的位置控制
-    publish_position_setpoint_trajectory(start_x, start_y, start_z,
-                                        end_x, end_y, end_z,
-                                        target_yaw);//这里面会不停的发送信息的
-    
-    // 检查是否到达当前航点
-    if (is_at_point(current_waypoint[0], current_waypoint[1], current_waypoint[2])) 
-    {
-        RCLCPP_INFO(get_logger(), "到达航点 %zu: [%.2f, %.2f, %.2f]",
-                    current_waypoint_index_, current_waypoint[0], current_waypoint[1], current_waypoint[2]);
-        current_waypoint_index_++;
-        
-
-        // 重置位置停留检测
-        reset_position_stuck_detection();
-    }
-}
-
-void TaskController::check_position_stuck_protection()//这个是不断检测你行动的代码，忽略的作用是防止你被一个目标吸引后粘住太久，于是主动忽略一秒的作用是使你脱离了approach(),然后你就放弃这个识别目标向前飞了
-{                                                       /*你可以注意，执行航点时他想要approach(),必须没有在忽略状态*/
-    double current_x = local_position_.pose.position.x;
-    double current_y = local_position_.pose.position.y;
-    double current_z = local_position_.pose.position.z;
-    
-    rclcpp::Time current_time = this->get_clock()->now();
-    
-    // 检查是否在同一位置（使用waypoint_threshold_作为阈值）
-    double position_change = std::sqrt(
-        std::pow(current_x - last_position_x_, 2) + 
-        std::pow(current_y - last_position_y_, 2) + 
-        std::pow(current_z - last_position_z_, 2)
-    );
-    
-    if (position_change > waypoint_threshold_) {
-        // 位置有显著变化，重置计时器
-        last_position_time_ = current_time;
-        last_position_x_ = current_x;
-        last_position_y_ = current_y;
-        last_position_z_ = current_z;
-        
-        // 如果之前检测到卡住状态，现在位置有变化了，重置状态
-        if (position_stuck_detected_) {
-            position_stuck_detected_ = false;
-            RCLCPP_INFO(get_logger(), "位置恢复移动，重置卡住检测状态");
-        }
-    } else {
-        // 位置变化很小，检查停留时间
-        double stuck_duration = (current_time - last_position_time_).seconds();
-        
-        if (!position_stuck_detected_ && stuck_duration >= 8.0) {
-            // 检测到在同一位置停留超过8秒
-            position_stuck_detected_ = true;
-            stuck_detection_time_ = current_time;
-            ignore_target_until_ = current_time + rclcpp::Duration::from_nanoseconds(1000000000LL); // 1秒后
-            ignoring_targets_ = true;
-            
-            RCLCPP_INFO(get_logger(), 
-                       "检测到在位置 [%.2f, %.2f, %.2f] 停留超过8秒，开始忽略目标数据1秒",
-                       current_x, current_y, current_z);
-        }
-    }
-    
-    // 检查是否应该停止忽略目标，为什么忽略
-    if (ignoring_targets_ && current_time >= ignore_target_until_) {
-        ignoring_targets_ = false;
-        RCLCPP_INFO(get_logger(), "停止忽略目标数据");
-    }
-    
-    // 打印调试信息（可选）
-    if (position_stuck_detected_) {
-        double total_stuck_time = (current_time - stuck_detection_time_).seconds();
-        double remaining_ignore_time = std::max(0.0, (ignore_target_until_ - current_time).seconds());
-        
-        RCLCPP_DEBUG(get_logger(), 
-                    "位置停留保护状态 - 卡住时间: %.1fs, 剩余忽略时间: %.1fs, 忽略状态: %s",
-                    total_stuck_time, remaining_ignore_time, ignoring_targets_ ? "是" : "否");
-    }
 }
 
 bool TaskController::is_at_point(const double x, const double y, const double z) const

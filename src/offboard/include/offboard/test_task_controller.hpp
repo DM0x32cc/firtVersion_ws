@@ -2,9 +2,10 @@
 #define OFFBOARD_TEST_TASK_CONTROLLER_HPP
 
 
-#include "offboard/base_controller.hpp"
+#include "offboard/base_controller.hpp" 
 #include "msg_tool/msg/color.hpp"
 #include "msg_tool/msg/line.hpp"
+#include "msg_tool/msg/car_state"
 #include <nav_msgs/msg/path.hpp>
 #include <geometry_msgs/msg/point_stamped.hpp>
 #include <geometry_msgs/msg/point32.hpp>
@@ -24,27 +25,54 @@ public:
     TaskController();//不需要初始化列表么？ 这里只是声明
 
 protected:
+    // bool waypoint_generate();//临时代替
+    // 通用任务函数
     void execute_waypoint_mission();
-    bool check_task_switch_conditions();
     bool tilt_land();
-    bool waypoint_generate();//临时代替
+    
+    // task1 任务函数
+    void hover_3s();
+    void fly_to_point();
+    void companion_fly();
+    void do_drop();
+    void return_home();
+
     void switch_task(FlightState new_state);
     bool is_at_point(const double x, const double y, const double z) const ;
     bool check_emergency_condition();
-
-
+    bool check_task_switch_conditions();
     // 回调函数
     void timer_callback()override;
-    
+    void target_callback(const msg_tool::msg::Color::ConstSharedPtr& msg);
+    void car_state_callback(const msg_tool::msg::CarState::ConstSharedPtr& msg);
     // 工具函数
     void compress_waypoints(std::vector<std::vector<double>>& waypoints);//航点压缩非常好的一个工具
 
-
-
+    // 订阅话题： target
+    rclcpp::Subscription<msg_tool::msg::Color>::SharedPtr target_sub;
+    // 订阅话题: 获得小车状态
+    rclcpp::Subscription<msg_tool::msg::CarState>::SharedPtr car_state_sub;
     // bool approach();
 
-    // 运行参数以及数据
+    // 订阅话题消息存储
+        // 视觉识别小车位置
     msg_tool::msg::Color target_msg_;
+        // 小车速度以及朝向
+    // msg_tool::msg::CarState car_state_msg_;
+    double car_speed_x_;
+    double car_speed_y_;
+    double deviation_angle_;
+
+
+    // 伴飞相关
+    bool target_data_ready_=false;
+    offboard::PIDController pid_x_;   // 前后方向 PID，输入: e_filt_x，输出: 前后修正速度
+    offboard::PIDController pid_y_;   // 左右方向 PID，输入: e_filt_y，输出: 左右修正速度
+    bool cpfly_takedown_ = false;
+
+    // drop相关
+    bool is_drop = false;
+    // 运行参数以及数据
     struct ProcessedTarget 
     {
         std::string color;
