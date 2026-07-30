@@ -116,6 +116,11 @@ void TaskController::timer_callback()
                 break;
             case FlightState::LAND:         
                 land(); 
+                if (!current_state_.armed) 
+                {
+                    switch_task(FlightState::INIT);
+                }
+
                 break;
             default:
             RCLCPP_INFO(get_logger(), "我去！未知飞行状态？！你干哪里来了？");
@@ -380,6 +385,7 @@ void TaskController::switch_task(FlightState new_state)
     {
         apply_disarm_flag_ = false;      // ← 新飞行开始，重置上锁标志
         mode_switched_for_landing_ = false;  // ← 加这行
+        launch_flag_ = false; //
     }
     RCLCPP_INFO(get_logger(), "切换任务: 从 %d 到 %d",
                 static_cast<int>(flight_state_),
