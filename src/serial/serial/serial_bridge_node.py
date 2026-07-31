@@ -134,15 +134,12 @@ class SerialBridgeNode(Node):
 
     # ---------- 处理 0x10: 小车速度 ----------
     def _handle_car_speed(self, data: bytes):
-        if len(data) < 12:
+        if len(data) < 8:
             return
-        vx, vy, vz = struct.unpack('!fff', data[:12])
+        speed, angle = struct.unpack('!ff', data[:8])
         msg = CarState()
-        msg.speed = float((vx**2 + vy**2)**0.5)
-        msg.deviation_angle = float(0.0)
-        if msg.speed > 0.01:
-            from math import atan2
-            msg.deviation_angle = float(atan2(vy, vx))
+        msg.speed = float(speed)
+        msg.deviation_angle = float(angle)
         msg.status = 0
         self.car_pub.publish(msg)
 
