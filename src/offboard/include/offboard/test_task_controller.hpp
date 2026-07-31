@@ -54,6 +54,13 @@ protected:
     // 工具函数
     void compress_waypoints(std::vector<std::vector<double>>& waypoints);//航点压缩非常好的一个工具
 
+    // tilt_land()函数所需变量
+    // tilt_land 阶段状态（非 static，每次任务重置）
+    bool tilt_stage1_completed_ = false;// 第一阶段是否完成
+    bool tilt_stage1_started_ = false;// 第一阶段是否已开始
+    int tilt_stage2_stuck_counter_ = 0;//新增
+    double tilt_stage2_last_z_ = -1.0;//新增
+
     // 订阅话题： target，就是摄像头看见的对象
     rclcpp::Subscription<msg_tool::msg::Color>::SharedPtr target_sub;
     double filtered_car_x= 0;

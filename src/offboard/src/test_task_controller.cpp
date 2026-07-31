@@ -600,10 +600,7 @@ void TaskController::reset_position_stuck_detection()
 bool TaskController::tilt_land()
 {
     // 静态变量记录降落状态
-    static bool stage1_completed = false;  // 第一阶段是否完成
-    static bool stage1_started = false;    // 第一阶段是否已开始
-    static int  stage2_stuck_counter = 0;   //新增
-    static double stage2_last_z = -1.0;     //新增
+    
 
     // 目标降落位置 (0, 0, 0)
     double target_x = 0.0;
@@ -623,8 +620,8 @@ bool TaskController::tilt_land()
     {
         RCLCPP_INFO(get_logger(), "降落完成！");
         // 重置状态变量以便下次使用
-        stage1_completed = false;
-        stage1_started = false;
+        tilt_stage1_completed_ = false;
+        tilt_stage1_started_ = false;
         return true;//这是唯一退出条件，但是太严苛了，后来已经放宽条件
     }
     
@@ -650,12 +647,12 @@ bool TaskController::tilt_land()
     double ideal_horizontal_distance = current_z;  // 45度角条件
 
     // 第一阶段：飞到45度线起点（只执行一次）
-    if (!stage1_completed) {
+    if (!tilt_stage1_completed_) {
         double position_tolerance = 0.05;  // 位置容差
         
         // 如果还没开始第一阶段，或者距离45度线太远，继续第一阶段
-        if (!stage1_started || std::abs(horizontal_distance - ideal_horizontal_distance) > position_tolerance) {
-            stage1_started = true;
+        if (!tilt_stage1_started_ || std::abs(horizontal_distance - ideal_horizontal_distance) > position_tolerance) {
+            tilt_stage1_started_ = true;
             
             // 计算45度线起点位置
             double start_point_distance = current_z;  // 45度线起点距离原点的距离等于当前高度
@@ -684,20 +681,20 @@ bool TaskController::tilt_land()
             return false;
         } else {
             // 到达45度线起点，标记第一阶段完成
-            stage1_completed = true;
+            tilt_stage1_completed_ = true;
             RCLCPP_INFO(get_logger(), "第一阶段完成！开始准备45度角降落");
         }
     }
     
     // 新增在第二阶段开头，我觉得这亨脊肋，没啥乱用，而且也不干扰代码，所以先留着把
-    if (stage2_last_z > 0 && std::abs(current_z - stage2_last_z) < 0.005) {
-        stage2_stuck_counter++;
+    if (tilt_stage2_last_z_ > 0 && std::abs(current_z - tilt_stage2_last_z_) < 0.005) {
+        tilt_stage2_stuck_counter_++;
     } else {
-        stage2_stuck_counter = 0;
+        tilt_stage2_stuck_counter_ = 0;
     }
-    stage2_last_z = current_z;
+    tilt_stage2_last_z_ = current_z;
 
-    if (stage2_stuck_counter > 60) {
+    if (tilt_stage2_stuck_counter_ > 60) {
         publish_velocity_body(0.0, 0.0, -0.20, 0.0);
         return false;
     }
