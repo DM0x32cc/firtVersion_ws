@@ -362,6 +362,7 @@ void TaskController::companion_fly()
     static auto last_velo_pid_time_ = this->get_clock()->now();//这没有问题，这只会第一次调用的时候使得积分项为0,后续完全不影响了
     auto now = this->get_clock()->now();
     double dt = (now - last_velo_pid_time_).seconds();
+    if (dt > 0.5) dt = 0.1; 
     // 这时候可以开始处理了，true，已经收到消息
     double vx_pid = cpfly_pid_x_.compute(target_msg_.delta_x, dt);   // 前后速度,这个方向可以直接用,因为机头方向不变
     double vy_pid = cpfly_pid_y_.compute(target_msg_.delta_y, dt);   // 左右速度
@@ -393,6 +394,7 @@ void TaskController::do_drop()
     static auto last_velo_pid_time_ = this->get_clock()->now();//这没有问题，这只会第一次调用的时候使得积分项为0,后续完全不影响了
     auto now = this->get_clock()->now();
     double dt = (now - last_velo_pid_time_).seconds();
+    if (dt > 0.5) dt = 0.1; 
     // 这时候可以开始处理了，true，已经收到消息
     double vx_pid = cpfly_pid_x_.compute(target_msg_.delta_x, dt);   // 前后速度,这个方向可以直接用,因为机头方向不变
     double vy_pid = cpfly_pid_y_.compute(target_msg_.delta_y, dt);   // 左右速度
@@ -452,6 +454,7 @@ void TaskController::approach_car()//只是接近，至于切换逻辑，则在�
     static auto last_velo_pid_time_ = this->get_clock()->now();//这没有问题，这只会第一次调用的时候使得积分项为0,后续完全不影响了
     auto now = this->get_clock()->now();
     double dt = (now - last_velo_pid_time_).seconds();
+    if (dt > 0.5) dt = 0.11; 
     // 这时候可以开始处理了，true，已经收到消息
     double vx_pid = land_pid_x_.compute(target_msg_.delta_x, dt);   // 前后速度,这个方向可以直接用,因为机头方向不变
     double vy_pid = land_pid_y_.compute(target_msg_.delta_y, dt);   // 左右速度
@@ -463,7 +466,7 @@ void TaskController::approach_car()//只是接近，至于切换逻辑，则在�
     double vy_cmd = vy_pid + car_speed_y_;
     publish_velocity_body(vx_cmd,vy_cmd,vz_cmd,0.0);
 }
-// pid 控制器可以混用吗？？？
+// pid 控制器可以混用吗？？？不可以！！！
 void TaskController::land_on_car()//开始下降了
 {
     // 如果中途丢失目标怎么处理？？？？？？？？没想好我曹了
@@ -477,6 +480,7 @@ void TaskController::land_on_car()//开始下降了
     static auto last_velo_pid_time_ = this->get_clock()->now();
     auto now = this->get_clock()->now();
     double dt = (now - last_velo_pid_time_).seconds();
+    if (dt > 0.5) dt = 0.1; 
     // 这时候可以开始处理了，true，已经收到消息
     double vx_pid = land_pid_x_.compute(target_msg_.delta_x, dt);   // 前后速度,这个方向可以直接用,因为机头方向不变
     double vy_pid = land_pid_y_.compute(target_msg_.delta_y, dt);   // 左右速度
