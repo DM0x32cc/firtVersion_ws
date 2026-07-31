@@ -19,7 +19,15 @@ class AlignNode(Node):
             10
         )
 
-        self.cmd_publisher = self.create_publisher(Color, '/alignment_cmd', 10)
+        self.cmd_publisher = self.create_publisher(
+            Color,
+            '/target',
+            rclpy.qos.QoSProfile(
+                depth=10,
+                reliability=rclpy.qos.ReliabilityPolicy.BEST_EFFORT,
+                durability=rclpy.qos.DurabilityPolicy.VOLATILE
+            )
+        )
         self.bridge = CvBridge()
         self.img_width = None
         self.img_height = None
