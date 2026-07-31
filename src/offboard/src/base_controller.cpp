@@ -844,14 +844,26 @@ double BaseController::shortest_angular_distance(const double from,const double 
     return diff;
 }
 
-
-std::string BaseController::flightStateToString(const FlightState& state) {
-    switch (state) {
+std::string BaseController::flightStateToString(const FlightState& state) 
+{
+    switch (state) 
+    {
     case FlightState::INIT: return "INIT";
     case FlightState::TAKEOFF: return "TAKEOFF";
     case FlightState::WAYPOINT: return "WAYPOINT";
-    case FlightState::TILTLAND: return "TITLELAND";
+    case FlightState::APPROACH: return "APPROACH";
+    case FlightState::TILTLAND: return "TILTLAND";
     case FlightState::LAND: return "LAND";
+    case FlightState::HOVER_3S: return "HOVER_3S";
+    case FlightState::FLY_TO_MIDPOINT: return "FLY_TO_MIDPOINT";
+    case FlightState::COMPANION_FLIGHT: return "COMPANION_FLIGHT";
+    case FlightState::DROP: return "DROP";
+    case FlightState::RETURN_HOME: return "RETURN_HOME";
+    case FlightState::SEARCH_CAR: return "SEARCH_CAR";
+    case FlightState::APPROACH_CAR: return "APPROACH_CAR";
+    case FlightState::LAND_ON_CAR: return "LAND_ON_CAR";
+    case FlightState::STAY_ON_CAR: return "STAY_ON_CAR";
+    case FlightState::TAKEOFF_FROM_CAR: return "TAKEOFF_FROM_CAR";
     default: return "UNKNOWN";
     }
 }

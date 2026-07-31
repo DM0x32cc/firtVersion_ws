@@ -26,8 +26,8 @@ TaskController::TaskController() : BaseController("offb_node"), cpfly_pid_x_(1.0
     position_stuck_detected_ = false;
     ignoring_targets_ = false;
     target_data_ready_ = false;
-    bool cpfly_takedown_ = false;
-    bool is_drop = false;
+    cpfly_takedown_ = false;
+    is_drop = false;
 
     target_sub = create_subscription<msg_tool::msg::Color>(
         "/target", qos_best_effort,
@@ -215,7 +215,7 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
             }
             break;
         case FlightState::TAKEOFF:
-            if(std::abs(local_position_.pose.position.x - takeoff_height_)< waypoint_threshold_)
+            if(std::abs(local_position_.pose.position.z - takeoff_height_)< waypoint_threshold_)
             {
                 start_hover(3.0);
                 switch_task(FlightState::HOVER_3S);   // 进入悬停3s
@@ -289,7 +289,7 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
             }
             break;
         case FlightState::TAKEOFF:
-            if(std::abs(local_position_.pose.position.x - takeoff_height_)< waypoint_threshold_)
+            if(std::abs(local_position_.pose.position.z - takeoff_height_)< waypoint_threshold_)
             {
                 switch_task(FlightState::SEARCH_CAR);   // 进入悬停3s
                 return true;
@@ -404,7 +404,7 @@ void TaskController::do_drop()
     double vy_cmd = vy_pid + car_speed_y_;
     publish_velocity_body(vx_cmd,vy_cmd,vz_cmd,0.0);
     // 这里投掷的时候，要判断距离小到一定程度才可以
-    if(std::hypot(target_msg_.delta_x,target_msg_.delta_x) < 0.07)
+    if(std::hypot(target_msg_.delta_x,target_msg_.delta_y) < 0.07)
     {
         //执行投掷
         is_drop=true;
