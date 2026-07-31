@@ -528,11 +528,31 @@ void TaskController::return_home()
         0);
 }
 
-void TaskController::search_car()  //暂时只会停在中点处
+// void TaskController::search_car()  //暂时只会停在中点处
+// {
+//     publish_position_setpoint(0.875,-0.375,takeoff_height_,0.0);
+//     return;
+// }
+void TaskController::search_car()
 {
-    // 如果中途丢失目标怎么处理？？？？？？？？没想好我曹了
-    publish_position_setpoint(0.875,-0.375,takeoff_height_,0.0);
-    return;
+    // 沿轨道顺时针方向打 4 个搜索点，扩大地面覆盖
+    static const std::vector<std::array<double, 3>> search_points = {
+        {0.875, -0.375, 0.0},   // 中点
+        {1.500, -0.800, 0.0},   // 偏右上
+        {0.500, -1.500, 0.0},   // 偏右下
+        {0.250, -0.800, 0.0},   // 偏左下
+    };
+    static int idx = 0;
+    static auto last_switch = this->get_clock()->now();
+
+    const auto &pt = search_points[idx];
+    publish_position_setpoint(pt[0], pt[1], takeoff_height_, 0.0);
+
+    if ((this->get_clock()->now() - last_switch).seconds() > 2.0)
+    {
+        idx = (idx + 1) % search_points.size();
+        last_switch = this->get_clock()->now();
+    }
 }
 void TaskController::approach_car()//只是接近，至于切换逻辑，则在我的判断里面
 {
