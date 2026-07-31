@@ -79,7 +79,7 @@ protected:
     bool is_drop = false;
 
     // 降落on car 上相关
-    int approach_stable_count_ = 0；
+    int approach_stable_count_ = 0;
     int touch_count_ = 0;
     double land_last_z_;
     offboard::PIDController land_pid_x_;
@@ -95,7 +95,6 @@ protected:
     
     geometry_msgs::msg::Polygon path_msg;
 
-    
     
     //目标处理情况相关
     std::vector<ProcessedTarget> processed_targets_;
@@ -118,6 +117,7 @@ protected:
     size_t current_waypoint_index_ = 0;//这是索引，我们用他来记录我们已经打到的航点
     double takeoff_height_;
     double waypoint_threshold_=0.1;//距离阈值（单位：米），用于判断飞行器是否“到达”了目标航点。注意，这个用于不单单是水平座标点，包括高度上也是由这个来判断。也就是说判定其实是一个立方体
+    double filter_param_company_ ;
     // 起飞之前的检查，确保我们连续发送5s的点的消息，下面这些就是相关变量
     bool setpoint_ready_ = false;
     int offboard_setpoint_counter_ = 0;

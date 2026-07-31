@@ -16,7 +16,7 @@ TaskController::TaskController() : BaseController("offb_node"), cpfly_pid_x_(1.0
 
     takeoff_height_=this->get_parameter("takeoff_height").as_double();
     waypoint_threshold_=this->get_parameter("waypoint_threshold").as_double();
-    filter_param_company = this ->get_parameter("filter_param_company").as_double();
+    filter_param_company_ = this ->get_parameter("filter_param_company").as_double();
 
     // 初始化位置停留保护机制变量
     last_position_time_ = this->get_clock()->now();
@@ -48,8 +48,8 @@ void TaskController::target_callback(const msg_tool::msg::Color::ConstSharedPtr&
 {
     static float last_delta_x_=0,last_delta_y_ = 0;
     target_msg_ = *msg;
-    //错误数据不要直接跳过，全盘照收，如果中途丢数据，那么就用小车速度行驶吗？？？
-    if (!target_data_ready_ && ) {
+    //错误数据不要直接跳过，全盘照收，如果中途丢数据，那么就用小车速度行驶吗？？？不行，还是留着县
+    if (!target_data_ready_  ) {
         target_data_ready_ = true;
         last_delta_x_= target_msg_.delta_x;
         last_delta_y_ = target_msg_.delta_y;
@@ -57,8 +57,8 @@ void TaskController::target_callback(const msg_tool::msg::Color::ConstSharedPtr&
         return;
     }
     // 如果中途扫见了，会不会拖慢我们的数据更新呢？我觉得如果转世界坐标系就不会出事了
-    target_msg_.delta_x = filter_param_company*last_delta_x_ + (1.0f-filter_param_company)*target_msg_.delta_x;
-    target_msg_.delta_y = filter_param_company*last_delta_y_ + (1.0f-filter_param_company)*target_msg_.delta_y;
+    target_msg_.delta_x = filter_param_company_*last_delta_x_ + (1.0f-filter_param_company_)*target_msg_.delta_x;
+    target_msg_.delta_y = filter_param_company_*last_delta_y_ + (1.0f-filter_param_company_)*target_msg_.delta_y;
     last_delta_x_ = target_msg_.delta_x;   // ← 存下这次的滤波结果
     last_delta_y_ = target_msg_.delta_y;   // ← 下一次来的时候用
     // 我想到一个东西，反正最终去参与PID的是距离差，那么如果我们想实在想把这个无人机的抖动与小车的抖动分离的话，
@@ -110,7 +110,7 @@ void TaskController::timer_callback()
                 break;
             case FlightState::HOVER_3S:     hover_3s(); break;      // 新增
             case FlightState::FLY_TO_MIDPOINT: fly_to_point(); break;
-            case FlightState::COMPANION:    companion_fly(); break; // 新增
+            case FlightState::COMPANION_FLIGHT:    companion_fly(); break; // 新增
             case FlightState::DROP:         do_drop(); break;       // 新增
             case FlightState::RETURN_HOME:  return_home(); break;   // 新增
             case FlightState::TILTLAND:     
@@ -147,7 +147,7 @@ void TaskController::timer_callback()
             case FlightState::APPROACH_CAR: approach_car(); break;     // 新增
             case FlightState::LAND_ON_CAR:  land_on_car(); break;      // 新增
             case FlightState::STAY_ON_CAR:  stay_on_car(); break;      // 新增
-            case FlightState::TAKEOFF_CAR:  takeoff_from_car(); break; // 新增
+            case FlightState::TAKEOFF_FROM_CAR:  takeoff_from_car(); break; // 新增
             // case FlightState::RETURN_HOME:  return_home(); break;//不必了
             case FlightState::TILTLAND:     
                 if(tilt_land()) 
@@ -224,7 +224,7 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
         case FlightState::FLY_TO_MIDPOINT :
             if(distance_to_target(0.875,-0.375,takeoff_height_) < 0.15)//如果太慢可以放大这个阈值,反正这不用太精确
             {
-                switch_task(FlightState::COMPANION_FLIGHT)
+                switch_task(FlightState::COMPANION_FLIGHT);
                 return true;
             }
             break;
@@ -235,7 +235,7 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
                 return true;
             }
             break;
-        case FLightState::DROP:
+        case FlightState::DROP:
             if(is_drop == true)
             {
                 switch_task(FlightState::RETURN_HOME);
@@ -289,7 +289,7 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
             break;
         case FlightState::SEARCH_CAR:
         // 万一没到点就，发现了，然后一到点就切换，怎么办呢？反正是不断更新的，这么来应该就没有问题了。
-            if( target_msg_.deteceted == true && is_at_point(0.875,-0.375,takeoff_height_) == true) 
+            if( target_msg_.detected == true && is_at_point(0.875,-0.375,takeoff_height_) == true) 
             {
                 switch_task(FlightState::APPROACH_CAR);
                 return true;
@@ -305,7 +305,7 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
             {
                 approach_stable_count_ = 0;
             }
-            if (stable_count_ >= 12)   // 对准了，开始降
+            if (approach_stable_count_ >= 12)   // 对准了，开始降
             {
                 approach_stable_count_ = 0;
                 touch_count_ = 0;
@@ -318,7 +318,7 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
         case FlightState::LAND_ON_CAR:
             // 这啥也不用，在timer_callbacj里面切换
             break;
-        case Flightstate::TAKEOFF_CAR:
+        case FlightState::TAKEOFF_FROM_CAR:
             if(is_at_point(0.0,-1.875,1.5))
             {
                 switch_task(FlightState::TILTLAND);
@@ -338,17 +338,17 @@ void  TaskController::hover_3s()
 {
     update_hover();
 }
-void fly_to_point()
+void TaskController::fly_to_point()
 {
     publish_position_setpoint(0.875,-0.375,takeoff_height_,0.0);
 }
 
-void companion_fly()
+void TaskController::companion_fly()
 {
     // 如果中途丢失目标怎么处理？？？？？？？？没想好我曹了，感觉应该预测一下
     if(target_msg_.detected == false)//原地悬停，不能回飞。这里飞到中点才切换这个模式，那么此时看到小车，则是有用的消息。
     {
-        publish_position_setpoint(local_position_.pose.position.x,local_position_.pose.position.y,1.5);
+        publish_position_setpoint(local_position_.pose.position.x,local_position_.pose.position.y,1.5,0.0);
         return;
     }
     static auto last_velo_pid_time_ = this->get_clock()->now();//这没有问题，这只会第一次调用的时候使得积分项为0,后续完全不影响了
@@ -360,13 +360,14 @@ void companion_fly()
     // 这边需要提前降落，所以加上判断逻辑
     
     if(distance_to_target(3.125,-1.125,takeoff_height_) < 0.20) cpfly_takedown_ = true;
+    double vz_cmd;
     if(cpfly_takedown_ == true)
     {
-        double vz_cmd = 1.5 * (1.10 - local_position_.pose.position.z );    // 高度纯 P
+        vz_cmd = 1.5 * (1.10 - local_position_.pose.position.z );    // 高度纯 P
     }
     else
     {
-        double vz_cmd = 1.5 * (1.50 - local_position_.pose.position.z );   // 高度纯 P
+        vz_cmd = 1.5 * (1.50 - local_position_.pose.position.z );   // 高度纯 P
     }
     last_velo_pid_time_ =now;
     // 加上前馈速度
@@ -374,7 +375,7 @@ void companion_fly()
     double vy_cmd = vy_pid + car_speed_y_;
     publish_velocity_body(vx_cmd,vy_cmd,vz_cmd,0.0);
 }
-void do_drop()
+void TaskController::do_drop()
 {
     if(target_msg_.detected == false)
     {
@@ -395,14 +396,14 @@ void do_drop()
     double vy_cmd = vy_pid + car_speed_y_;
     publish_velocity_body(vx_cmd,vy_cmd,vz_cmd,0.0);
     // 这里投掷的时候，要判断距离小到一定程度才可以
-    if(std::hypot(target_msg_.delata_x,target_msg_.delata_x) < 0.07)
+    if(std::hypot(target_msg_.delta_x,target_msg_.delta_x) < 0.07)
     {
         //执行投掷
         is_drop=true;
     }
 }
 
-void return_home()
+void TaskController::return_home()
 {
     const auto &pos = local_position_.pose.position;
     // 起点 = 当前位置
@@ -411,7 +412,7 @@ void return_home()
     double start_z = pos.z;
     if(!is_at_point(start_x,start_y,1.5))
     {
-        publish_position_setpoint(start_x,start_y,1.5);
+        publish_position_setpoint(start_x,start_y,1.5,0.0);
         return;
     }
 
@@ -426,18 +427,18 @@ void return_home()
         0);
 }
 
-void search_car()  //暂时只会停在中点处
+void TaskController::search_car()  //暂时只会停在中点处
 {
     // 如果中途丢失目标怎么处理？？？？？？？？没想好我曹了
     publish_position_setpoint(0.875,-0.375,takeoff_height_,0.0);
     return;
 }
-void approach_car()//只是接近，至于切换逻辑，则在我的判断里面
+void TaskController::approach_car()//只是接近，至于切换逻辑，则在我的判断里面
 {
     // 如果中途丢失目标怎么处理？？？？？？？？没想好我曹了
     if(target_msg_.detected == false)//原地悬停，不能回飞
     {
-        publish_position_setpoint(local_position_.pose.position.x,local_position_.pose.position.y,1.5);
+        publish_position_setpoint(local_position_.pose.position.x,local_position_.pose.position.y,1.5,0.0);
         return;
     }
     static auto last_velo_pid_time_ = this->get_clock()->now();//这没有问题，这只会第一次调用的时候使得积分项为0,后续完全不影响了
@@ -455,7 +456,7 @@ void approach_car()//只是接近，至于切换逻辑，则在我的判断里�
     publish_velocity_body(vx_cmd,vy_cmd,vz_cmd,0.0);
 }
 // pid 控制器可以混用吗？？？
-void land_on_car()//开始下降了
+void TaskController::land_on_car()//开始下降了
 {
     // 如果中途丢失目标怎么处理？？？？？？？？没想好我曹了
     // 不行，这不可以有吧，不然太干扰，算了不知道怎么处理。。。。
@@ -497,13 +498,13 @@ void land_on_car()//开始下降了
         return;
     }
     // 还在下降中：水平修偏 + 极慢垂直速度
-    if(current_z_ > 0.50)
+    if(current_z > 0.50)
     {
-        publish_velocity_body(vx, vy, -0.35, 0.0);
+        publish_velocity_body(vx_cmd, vy_cmd, -0.35, 0.0);
     }
     else
     {
-        publish_velocity_body(vx, vy, -0.06, 0.0);
+        publish_velocity_body(vx_cmd, vy_cmd, -0.06, 0.0);
     }
 }
 
@@ -513,11 +514,11 @@ void TaskController::stay_on_car()
     auto elapsed = (this->get_clock()->now() - stay_start_time_).seconds();
     if (elapsed >= 5.0)
     {
-        switch_task(FlightState::TAKEOFF_CAR);
+        switch_task(FlightState::TAKEOFF_FROM_CAR);
     }
 }
 
-void takeoff_from_car()//起飞，然后飞到倾斜降落点
+void TaskController::takeoff_from_car()//起飞，然后飞到倾斜降落点
 {
     const auto &pos = local_position_.pose.position;
     // 起点 = 当前位置
@@ -526,7 +527,7 @@ void takeoff_from_car()//起飞，然后飞到倾斜降落点
     double start_z = pos.z;
     if(!is_at_point(start_x,start_y,1.5))
     {
-        publish_position_setpoint(start_x,start_y,1.5);
+        publish_position_setpoint(start_x,start_y,1.5,0.0);
         return;
     }
 
