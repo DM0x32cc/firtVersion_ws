@@ -65,7 +65,7 @@ void TaskController::target_callback(const msg_tool::msg::Color::ConstSharedPtr&
         RCLCPP_INFO(get_logger(), "首次收到目标检测数据");
         return;
     }
-    // 如果中途扫见了，会不会拖慢我们的数据更新呢？我觉得如果转世界坐标系就不会出事了
+    // 如果中途扫见了，会不会拖慢我们的数据更新呢？我觉得如果转世界坐标系就不会出事了对的！暂时认为没有问题
     filtered_car_x_ = filter_param_company_ * filtered_car_x_
                        + (1.0 - filter_param_company_) * car_world_x;
     filtered_car_y_ = filter_param_company_ * filtered_car_y_
