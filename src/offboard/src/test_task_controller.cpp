@@ -583,8 +583,12 @@ void TaskController::land_on_car()//开始下降了
 {
     // 如果中途丢失目标怎么处理？？？？？？？？没想好我曹了
     // 不行，这不可以有吧，不然太干扰，算了不知道怎么处理。。。。//这么处理好！！！
-    publish_velocity_body(car_speed_x_, car_speed_y_,
-                          1.5 * (1.50 - local_position_.pose.position.z), 0.0);
+    if(target_msg_.detected == false)
+    {
+        publish_velocity_body(car_speed_x_, car_speed_y_,
+                          0.0, 0.0);
+    }
+    
     // 只初始化一次，不用害怕，这函数只会被其中一个任务调用，但是同一个任务只可以执行一次，不能两次，不然要重启
     static auto last_velo_pid_time_ = this->get_clock()->now();
     auto now = this->get_clock()->now();
@@ -632,7 +636,7 @@ void TaskController::land_on_car()//开始下降了
 
 void TaskController::stay_on_car()
 {
-    publish_velocity_body(0.0, 0.0, 0.0, 0.0);
+    publish_velocity_body(car_speed_x_, car_speed_y_, 0.0, 0.0);
     auto elapsed = (this->get_clock()->now() - stay_start_time_).seconds();
     if (elapsed >= 5.0)
     {
