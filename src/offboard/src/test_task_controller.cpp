@@ -60,18 +60,18 @@ void TaskController::target_callback(const msg_tool::msg::Color::ConstSharedPtr&
     if (!target_data_ready_  ) 
     {
         target_data_ready_ = true;
-        filtered_car_x= car_world_x;
-        filtered_car_y = car_world_y;
+        filtered_car_x_= car_world_x;
+        filtered_car_y_ = car_world_y;
         RCLCPP_INFO(get_logger(), "首次收到目标检测数据");
         return;
     }
     // 如果中途扫见了，会不会拖慢我们的数据更新呢？我觉得如果转世界坐标系就不会出事了
-    filtered_car_x = filter_param_company_ * filtered_car_x
+    filtered_car_x_ = filter_param_company_ * filtered_car_x_
                        + (1.0 - filter_param_company_) * car_world_x;
-    filtered_car_y = filter_param_company_ * filtered_car_y
+    filtered_car_y_ = filter_param_company_ * filtered_car_y_
                        + (1.0 - filter_param_company_) * car_world_y;
-    target_msg_.delta_x = static_cast<float>(filtered_car_x - local_position_.pose.position.x);
-    target_msg_.delta_y = static_cast<float>(filtered_car_y - local_position_.pose.position.y);
+    target_msg_.delta_x = static_cast<float>(filtered_car_x_ - local_position_.pose.position.x);
+    target_msg_.delta_y = static_cast<float>(filtered_car_y_ - local_position_.pose.position.y);
 
     // 我想到一个东西，反正最终去参与PID的是距离差，那么如果我们想实在想把这个无人机的抖动与小车的抖动分离的话，
     // 那我们其实可以在回调函数里面直接进行分离，就接收到摄像头检查这的距离差之后，先把它转到10呃市里头报一下，
@@ -686,8 +686,8 @@ void TaskController::switch_task(FlightState new_state)
         
 
         // === 视觉滤波 ===
-        filtered_car_x = 0;                  // ❌ 缺失
-        filtered_car_y = 0;                  // ❌ 缺失
+        filtered_car_x_ = 0;                  // ❌ 缺失
+        filtered_car_y_ = 0;                  // ❌ 缺失
 
         // === 小车状态 ===
         car_speed_x_ = 0;                    // ❌ 缺失

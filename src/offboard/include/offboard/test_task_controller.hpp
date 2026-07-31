@@ -66,8 +66,8 @@ protected:
 
     // 订阅话题： target，就是摄像头看见的对象
     rclcpp::Subscription<msg_tool::msg::Color>::SharedPtr target_sub;
-    double filtered_car_x= 0;
-    double filtered_car_y= 0;
+    double filtered_car_x_= 0;
+    double filtered_car_y_= 0;
     double filter_param_company_ ;
     // 订阅话题: 获得小车状态
     rclcpp::Subscription<msg_tool::msg::CarState>::SharedPtr car_state_sub;
