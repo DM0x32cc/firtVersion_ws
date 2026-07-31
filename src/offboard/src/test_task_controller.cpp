@@ -556,22 +556,64 @@ void TaskController::takeoff_from_car()//起飞，然后飞到倾斜降落点
 
 void TaskController::switch_task(FlightState new_state)
 {
-    if (new_state == flight_state_) {
+    if (new_state == flight_state_) 
+    {
         return;
     }
-    if (new_state == FlightState::INIT) //这没事阿，反正基本不会有人调用这个吧？？？
-    {//所有相关变量都要在这里重置！！！！
-        apply_disarm_flag_ = false;      // ← 新飞行开始，重置上锁标志
-        mode_switched_for_landing_ = false;  // ← 加这行
-        launch_flag_ = false; //
-        cpfly_takedown_ = false;
-        target_data_ready_=false; //
+    // if (new_state == FlightState::INIT) //这没事阿，反正基本不会有人调用这个吧？？？
+    // {//所有相关变量都要在这里重置！！！！
+    //     apply_disarm_flag_ = false;      // ← 新飞行开始，重置上锁标志
+    //     mode_switched_for_landing_ = false;  // ← 加这行
+    //     launch_flag_ = false; //
+    //     cpfly_takedown_ = false;
+    //     target_data_ready_=false; //
+    // }
+    if (new_state == FlightState::INIT)
+    {
+        // === 父类变量 ===
+        apply_disarm_flag_ = false;          // ✅ 已有
+        mode_switched_for_landing_ = false;  // ✅ 已有
+        launch_flag_ = false;                // ✅ 已有
+
+        // === 伴飞/抛投 ===
+        cpfly_takedown_ = false;             // ✅ 已有
+        is_drop = false;                     // ❌ 缺失
+        target_data_ready_ = false;          // ✅ 已有
+
+        // === 视觉滤波 ===
+        filtered_car_x = 0;                  // ❌ 缺失
+        filtered_car_y = 0;                  // ❌ 缺失
+
+        // === 小车状态 ===
+        car_speed_x_ = 0;                    // ❌ 缺失
+        car_speed_y_ = 0;                    // ❌ 缺失
+
+        // === 小车降落 ===
+        approach_stable_count_ = 0;          // ❌ 缺失
+        touch_count_ = 0;                    // ❌ 缺失（land_on_car 里手动重置了，但不保险）
+        land_last_z_ = 0;                    // ❌ 缺失
+
+        // === 倾斜降落 ===
+        tilt_stage1_completed_ = false;      // ❌ 缺失
+        tilt_stage1_started_ = false;        // ❌ 缺失
+        tilt_stage2_stuck_counter_ = 0;      // ❌ 缺失
+        tilt_stage2_last_z_ = -1.0;          // ❌ 缺失
+
+        // === PID 控制器 ===
+        cpfly_pid_x_.reset();                // ❌ 缺失（需要 PIDController 加 reset() 方法）
+        cpfly_pid_y_.reset();                // ❌ 缺失
+        land_pid_x_.reset();                 // ❌ 缺失
+        land_pid_y_.reset();                 // ❌ 缺失
+
+        // === 防卡位 ===
+        reset_position_stuck_detection();    // ❌ 缺失（这个函数已写好，直接调用即可）
     }
     RCLCPP_INFO(get_logger(), "切换任务: 从 %d 到 %d",
                 static_cast<int>(flight_state_),
                 static_cast<int>(new_state));
     flight_state_ = new_state;
 }
+
 
 
 bool TaskController::check_emergency_condition()
