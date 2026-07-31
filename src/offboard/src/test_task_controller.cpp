@@ -27,7 +27,7 @@ TaskController::TaskController() : BaseController("offb_node"), cpfly_pid_x_(1.0
     ignoring_targets_ = false;
     target_data_ready_ = false;
     cpfly_takedown_ = false;
-    is_drop = false;
+    // is_drop = false;
 
     target_sub = create_subscription<msg_tool::msg::Color>(
         "/target", qos_best_effort,
@@ -244,11 +244,12 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
             }
             break;
         case FlightState::DROP:
-            if(is_drop == true)
-            {
-                switch_task(FlightState::RETURN_HOME);
-                return true;
-            }
+            // if(is_drop == true)
+            // {
+            //     switch_task(FlightState::RETURN_HOME);
+            //     return true;
+            // }
+            // do_drop()函数自己会转
             break;
         case FlightState::RETURN_HOME:
             if(is_at_point(0.0,-1.875,1.5))
@@ -406,11 +407,91 @@ void TaskController::do_drop()
     double vy_cmd = vy_pid + car_speed_y_;
     publish_velocity_body(vx_cmd,vy_cmd,vz_cmd,0.0);
     // 这里投掷的时候，要判断距离小到一定程度才可以
-    if(std::hypot(target_msg_.delta_x,target_msg_.delta_y) < 0.07)
+        // 重试超过次数6次，放弃                         
+    if (drop_retry_count_ >= 6)                    
+    {                                              
+        RCLCPP_INFO(get_logger(),"重试次数太多，提前结束这个阶段");           
+        drop_sent_ = false;                       
+        drop_confirmed_ = false;           
+        drop_retry_count_ = 0;                    
+        drop_stable_count_ = 0;         
+        switch_task(FlightState::RETURN_HOME);    
+        return;                                    
+    }                               
+    if (drop_sent_)
     {
-        //执行投掷
-        is_drop=true;
+        if (drop_confirmed_)
+        {
+            drop_sent_ = false;
+            drop_confirmed_ = false;
+            drop_retry_count_ = 0; 
+            drop_stable_count_ = 0;
+            RCLCPP_INFO(get_logger(), "抛投确认完成，返航");
+            switch_task(FlightState::RETURN_HOME);
+        }
+        return;
     }
+    double error = std::hypot(target_msg_.delta_x,target_msg_.delta_y);
+    if (error < 0.07 && target_msg_.detected)
+    {
+        drop_stable_count_++;
+    }
+    else
+    {
+        drop_stable_count_ = 0;
+    }
+    if (drop_stable_count_ >= 10)
+    {
+        trigger_drop_servo();
+        drop_sent_ = true;
+    }
+    
+}
+
+void TaskController::trigger_drop_servo()
+{
+    if (!command_client_->service_is_ready())
+    {
+        RCLCPP_WARN(get_logger(), "抛投: command 服务未就绪，跳过本帧");
+        drop_sent_ = false;
+        return;
+    }
+    auto request = std::make_shared<mavros_msgs::srv::CommandLong::Request>();
+    request->command  = 183;    // MAV_CMD_DO_SET_SERVO
+    request->param1   = 6;     // AUX 口编号，改成你舵机实际接的口，我们是六
+    request->param2   = 2200;  // PWM 值（微秒），改成你舵机抛投动作对应的值，改为最大的2200
+    request->param3   = 0.0;
+    request->param4   = 0.0;
+    request->param5   = 0.0;
+    request->param6   = 0.0;
+    request->param7   = 0.0;
+    command_client_->async_send_request(
+        request,
+        [this](rclcpp::Client<mavros_msgs::srv::CommandLong>::SharedFuture future)
+        {
+            try
+            {
+                auto result = future.get();
+                if (result->success)
+                {
+                    RCLCPP_INFO(get_logger(), "舵机抛投成功");
+                    drop_confirmed_ = true;
+                }
+                else
+                {
+                    RCLCPP_ERROR(get_logger(), "舵机被飞控拒绝，返回码: %d", result->result);
+                    drop_sent_ = false;
+                    drop_retry_count_++;
+
+                }
+            }
+            catch (const std::exception& e)
+            {
+                RCLCPP_ERROR(get_logger(), "舵机调用异常: %s", e.what());
+                drop_sent_ = false;
+                drop_retry_count_++;
+            }
+        });
 }
 
 void TaskController::return_home()
@@ -577,8 +658,12 @@ void TaskController::switch_task(FlightState new_state)
 
         // === 伴飞/抛投 ===
         cpfly_takedown_ = false;             // ✅ 已有
-        is_drop = false;                     // ❌ 缺失
-        target_data_ready_ = false;          // ✅ 已有
+        target_data_ready_ = false;          // ✅ 已有,目标消息
+        drop_stable_count_ = 0;
+        drop_retry_count_ = 0;
+        drop_sent_ = false;
+        drop_confirmed_ = false;             // ❌ 缺失
+        
 
         // === 视觉滤波 ===
         filtered_car_x = 0;                  // ❌ 缺失

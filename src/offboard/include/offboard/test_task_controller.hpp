@@ -36,6 +36,7 @@ protected:
     void fly_to_point();
     void companion_fly();
     void do_drop();
+    void trigger_drop_servo();
     void search_car();
     void approach_car();
     void land_on_car();
@@ -86,8 +87,10 @@ protected:
     bool cpfly_takedown_ = false;
 
     // drop相关
-    bool is_drop = false;
-
+    int drop_stable_count_ = 0;
+    int drop_retry_count_ = 0;
+    bool drop_sent_ = false;
+    bool drop_confirmed_ = false;
     // 降落on car 上相关
     int approach_stable_count_ = 0;
     int touch_count_ = 0;
