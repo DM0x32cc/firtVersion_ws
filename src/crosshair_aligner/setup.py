@@ -21,6 +21,7 @@ setup(
     entry_points={
         'console_scripts': [
             'align_node = crosshair_aligner.align_node:main',
+            'cv2_camera_node = crosshair_aligner.cv2_camera_node:main',
         ],
     },
 )
