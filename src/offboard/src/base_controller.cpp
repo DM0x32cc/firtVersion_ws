@@ -50,7 +50,7 @@ BaseController::BaseController(const std::string& node_name)
         });
 
     task_sub_ = create_subscription<std_msgs::msg::Int32>(
-        "/task", qos_best_effort,
+        "/task", qos_reliable,
     [this](const std_msgs::msg::Int32::ConstSharedPtr& msg){
             task_callback(msg);
         });

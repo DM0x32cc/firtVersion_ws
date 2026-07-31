@@ -560,8 +560,8 @@ void TaskController::switch_task(FlightState new_state)
         apply_disarm_flag_ = false;      // ← 新飞行开始，重置上锁标志
         mode_switched_for_landing_ = false;  // ← 加这行
         launch_flag_ = false; //
-        bool cpfly_takedown_ = false;
-        bool target_data_ready_=false; //
+        cpfly_takedown_ = false;
+        target_data_ready_=false; //
     }
     RCLCPP_INFO(get_logger(), "切换任务: 从 %d 到 %d",
                 static_cast<int>(flight_state_),
