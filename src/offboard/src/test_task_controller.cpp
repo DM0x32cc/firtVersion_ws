@@ -46,21 +46,29 @@ TaskController::TaskController() : BaseController("offb_node"), cpfly_pid_x_(1.0
 
 void TaskController::target_callback(const msg_tool::msg::Color::ConstSharedPtr& msg)//先不用世界坐标系,先滤波
 {
-    static float last_delta_x_=0,last_delta_y_ = 0;
     target_msg_ = *msg;
+    double world_dx = msg->delta_x * cos(current_yaw_) - msg->delta_y * sin(current_yaw_);
+    double world_dy = msg->delta_x * sin(current_yaw_) + msg->delta_y * cos(current_yaw_);
+    double car_world_x = local_position_.pose.position.x + world_dx;
+    double car_world_y = local_position_.pose.position.y + world_dy;
     //错误数据不要直接跳过，全盘照收，如果中途丢数据，那么就用小车速度行驶吗？？？不行，还是留着县
-    if (!target_data_ready_  ) {
+    
+    if (!target_data_ready_  ) 
+    {
         target_data_ready_ = true;
-        last_delta_x_= target_msg_.delta_x;
-        last_delta_y_ = target_msg_.delta_y;
+        filtered_car_x= car_world_x;
+        filtered_car_y = car_world_y;
         RCLCPP_INFO(get_logger(), "首次收到目标检测数据");
         return;
     }
     // 如果中途扫见了，会不会拖慢我们的数据更新呢？我觉得如果转世界坐标系就不会出事了
-    target_msg_.delta_x = filter_param_company_*last_delta_x_ + (1.0f-filter_param_company_)*target_msg_.delta_x;
-    target_msg_.delta_y = filter_param_company_*last_delta_y_ + (1.0f-filter_param_company_)*target_msg_.delta_y;
-    last_delta_x_ = target_msg_.delta_x;   // ← 存下这次的滤波结果
-    last_delta_y_ = target_msg_.delta_y;   // ← 下一次来的时候用
+    filtered_car_x = filter_param_company_ * filtered_car_x
+                       + (1.0 - filter_param_company_) * car_world_x;
+    filtered_car_y = filter_param_company_ * filtered_car_y
+                       + (1.0 - filter_param_company_) * car_world_y;
+    target_msg_.delta_x = static_cast<float>(filtered_car_x - local_position_.pose.position.x);
+    target_msg_.delta_y = static_cast<float>(filtered_car_y - local_position_.pose.position.y);
+
     // 我想到一个东西，反正最终去参与PID的是距离差，那么如果我们想实在想把这个无人机的抖动与小车的抖动分离的话，
     // 那我们其实可以在回调函数里面直接进行分离，就接收到摄像头检查这的距离差之后，先把它转到10呃市里头报一下，
     // 然后进行滤波，滤波完之后再拿当前位置减去滤波之后结果就可以得到，依旧得到这个J绝差了。啊我们现在是直接拿到
