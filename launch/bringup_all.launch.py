@@ -11,10 +11,10 @@ def generate_launch_description():
     ws_root = os.path.dirname(current_dir)
 
     # 0. 视觉管线 —— 与雷达无依赖，最早启动抢占初始化时间
-    launch_dvpp_camera_node = Node(
-        package='dvpp_camera',
-        executable='dvpp_camera_node',
-        name='dvpp_camera_node',
+    launch_cv2_camera_node = Node(
+        package='crosshair_aligner',
+        executable='cv2_camera_node',
+        name='cv2_camera_node',
         output='screen'
     )
 
@@ -119,7 +119,7 @@ def generate_launch_description():
 
         # 然后启动雷达驱动 + 相机驱动（无依赖，并行启动）
         livox_launch,
-        launch_dvpp_camera_node,
+        launch_cv2_camera_node,
 
         # 5 秒后启动视觉检测（等相机出图稳定）
         TimerAction(
