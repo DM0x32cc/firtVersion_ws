@@ -244,6 +244,7 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
         case FlightState::COMPANION_FLIGHT :
             if(std::hypot(local_position_.pose.position.x-2.375,local_position_.pose.position.y-1.875) < 0.15)//只算水平距离
             {
+                // 只有到那个点才可以去切换
                 switch_task(FlightState::DROP);
                 return true;
             }
@@ -362,7 +363,8 @@ void TaskController::companion_fly()
     // 如果中途丢失目标怎么处理？？？？？？？？没想好我曹了，感觉应该预测一下
     if(target_msg_.detected == false)//原地悬停，不能回飞。这里飞到中点才切换这个模式，那么此时看到小车，则是有用的消息。
     {
-        publish_position_setpoint(local_position_.pose.position.x,local_position_.pose.position.y,1.5,0.0);
+        publish_velocity_body(car_speed_x_, car_speed_y_,
+                          1.5 * (1.50 - local_position_.pose.position.z), 0.0);
         return;
     }
     static auto last_velo_pid_time_ = this->get_clock()->now();//这没有问题，这只会第一次调用的时候使得积分项为0,后续完全不影响了
@@ -392,11 +394,14 @@ void TaskController::companion_fly()
 }
 void TaskController::do_drop()
 {
-    if(target_msg_.detected == false)
+
+    if(target_msg_.detected == false)//这里是为了等待吗？不是吧
     {
-        publish_position_setpoint(0.875,-0.375,takeoff_height_,0.0);
+        publish_velocity_body(car_speed_x_, car_speed_y_,
+                          1.5 * (1.10 - local_position_.pose.position.z), 0.0);
         return;
     }
+
     static auto last_velo_pid_time_ = this->get_clock()->now();//这没有问题，这只会第一次调用的时候使得积分项为0,后续完全不影响了
     auto now = this->get_clock()->now();
     double dt = (now - last_velo_pid_time_).seconds();
@@ -534,7 +539,8 @@ void TaskController::approach_car()//只是接近，至于切换逻辑，则在�
     // 如果中途丢失目标怎么处理？？？？？？？？没想好我曹了
     if(target_msg_.detected == false)//原地悬停，不能回飞
     {
-        publish_position_setpoint(local_position_.pose.position.x,local_position_.pose.position.y,1.5,0.0);
+        publish_velocity_body(car_speed_x_, car_speed_y_,
+                          1.5 * (1.50 - local_position_.pose.position.z), 0.0);
         return;
     }
     static auto last_velo_pid_time_ = this->get_clock()->now();//这没有问题，这只会第一次调用的时候使得积分项为0,后续完全不影响了
@@ -556,12 +562,9 @@ void TaskController::approach_car()//只是接近，至于切换逻辑，则在�
 void TaskController::land_on_car()//开始下降了
 {
     // 如果中途丢失目标怎么处理？？？？？？？？没想好我曹了
-    // 不行，这不可以有吧，不然太干扰，算了不知道怎么处理。。。。
-    // if(target_msg_.detected == false)//原地悬停，不能回飞
-    // {
-    //     publish_position_setpoint(local_position_.pose.position.x,local_position_.pose.position.y,1.5);
-    //     return;
-    // }
+    // 不行，这不可以有吧，不然太干扰，算了不知道怎么处理。。。。//这么处理好！！！
+    publish_velocity_body(car_speed_x_, car_speed_y_,
+                          1.5 * (1.50 - local_position_.pose.position.z), 0.0);
     // 只初始化一次，不用害怕，这函数只会被其中一个任务调用，但是同一个任务只可以执行一次，不能两次，不然要重启
     static auto last_velo_pid_time_ = this->get_clock()->now();
     auto now = this->get_clock()->now();
@@ -589,7 +592,7 @@ void TaskController::land_on_car()//开始下降了
     {
         // 确认停在车上
         // 不放零，放小车的速度
-        publish_velocity_body(car_speed_x_, car_speed_y_, 0, 0);
+        publish_velocity_body(car_speed_x_, car_speed_y_, 0.0, 0.0);
         touch_count_ = 0;
         land_last_z_ = 0.0;
         stay_start_time_ = this->get_clock()->now();//这里开始计算时间
