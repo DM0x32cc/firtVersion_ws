@@ -235,7 +235,7 @@ bool TaskController::check_task_switch_conditions()//return true代表着是切�
             }
             break;
         case FlightState::FLY_TO_MIDPOINT :
-            if(distance_to_target(0.875,-0.375,takeoff_height_) < 0.15)//如果太慢可以放大这个阈值,反正这不用太精确
+            if(distance_to_target(1.625,-0.375,takeoff_height_) < 0.10)//如果太慢可以放大这个阈值,反正这不用太精确
             {
                 switch_task(FlightState::COMPANION_FLIGHT);
                 return true;
@@ -355,7 +355,7 @@ void  TaskController::hover_3s()
 }
 void TaskController::fly_to_point()
 {
-    publish_position_setpoint(0.875,-0.375,takeoff_height_,0.0);
+    publish_position_setpoint(1.625,-0.375,takeoff_height_,0.0);
 }
 
 void TaskController::companion_fly()
@@ -696,49 +696,82 @@ void TaskController::switch_task(FlightState new_state)
 
     if (new_state == FlightState::INIT)
     {
-        // 任务id重置
-        current_task_id_ = -1 ;
-        // === 父类变量 ===
-        apply_disarm_flag_ = false;          // ✅ 已有
-        mode_switched_for_landing_ = false;  // ✅ 已有
-        launch_flag_ = false;                // ✅ 已有
+        // ============================================
+        // 目标: 所有状态回到刚上电时的值
+        // ============================================
 
-        // === 伴飞/抛投 ===
-        cpfly_takedown_ = false;             // ✅ 已有
-        target_data_ready_ = false;          // ✅ 已有,目标消息
+        // === 父类: 任务与启动 ===
+        current_task_id_ = -1;
+        launch_flag_ = false;
+
+        // === 父类: 模式切换与解锁标志位 ===
+        apply_offboard_flag_ = false;
+        apply_arm_flag_ = false;
+        apply_disarm_flag_ = false;
+        mode_switched_for_landing_ = false;
+
+        // === 父类: trajectory PD / 积分缓存 ===
+        last_err_body_x_ = 0.0;
+        last_err_body_y_ = 0.0;
+        last_err_body_z_ = 0.0;
+        integral_err_body_x_ = 0.0;
+        integral_err_body_y_ = 0.0;
+        integral_err_body_z_ = 0.0;
+
+        // === 父类: trajectory cross-track D 缓存 ===
+        last_cross_err_x_ = 0.0;
+        last_cross_err_y_ = 0.0;
+
+        // === 父类: 悬停状态机 ===
+        stop_hover();
+
+        // === offboard setpoint 就绪检查 ===
+        setpoint_ready_ = false;
+        offboard_setpoint_counter_ = 0;
+
+        // === 视觉目标清零 (detected=false 防止 SEARCH_CAR 误跳) ===
+        target_msg_ = msg_tool::msg::Color{};
+
+        // === 伴飞 / 抛投 ===
+        cpfly_takedown_ = false;
+        target_data_ready_ = false;
         drop_stable_count_ = 0;
         drop_retry_count_ = 0;
         drop_sent_ = false;
-        drop_confirmed_ = false;             // ❌ 缺失
-        
+        drop_confirmed_ = false;
 
         // === 视觉滤波 ===
-        filtered_car_x_ = 0;                  // ❌ 缺失
-        filtered_car_y_ = 0;                  // ❌ 缺失
+        filtered_car_x_ = 0.0;
+        filtered_car_y_ = 0.0;
 
         // === 小车状态 ===
-        car_speed_x_ = 0;                    // ❌ 缺失
-        car_speed_y_ = 0;                    // ❌ 缺失
+        car_speed_x_ = 0.0;
+        car_speed_y_ = 0.0;
+        deviation_angle_ = 0.0;
 
         // === 小车降落 ===
-        approach_stable_count_ = 0;          // ❌ 缺失
-        touch_count_ = 0;                    // ❌ 缺失（land_on_car 里手动重置了，但不保险）
-        land_last_z_ = 0;                    // ❌ 缺失
+        approach_stable_count_ = 0;
+        touch_count_ = 0;
+        land_last_z_ = 0.0;
 
         // === 倾斜降落 ===
-        tilt_stage1_completed_ = false;      // ❌ 缺失
-        tilt_stage1_started_ = false;        // ❌ 缺失
-        tilt_stage2_stuck_counter_ = 0;      // ❌ 缺失
-        tilt_stage2_last_z_ = -1.0;          // ❌ 缺失
+        tilt_stage1_completed_ = false;
+        tilt_stage1_started_ = false;
+        tilt_stage2_stuck_counter_ = 0;
+        tilt_stage2_last_z_ = -1.0;
 
         // === PID 控制器 ===
-        cpfly_pid_x_.reset();                // ❌ 缺失（需要 PIDController 加 reset() 方法）
-        cpfly_pid_y_.reset();                // ❌ 缺失
-        land_pid_x_.reset();                 // ❌ 缺失
-        land_pid_y_.reset();                 // ❌ 缺失
+        cpfly_pid_x_.reset();
+        cpfly_pid_y_.reset();
+        land_pid_x_.reset();
+        land_pid_y_.reset();
+
+        // === 路径规划目标处理 ===
+        processed_targets_.clear();
+        approach_success_count_ = 0;
 
         // === 防卡位 ===
-        reset_position_stuck_detection();    // ❌ 缺失（这个函数已写好，直接调用即可）
+        reset_position_stuck_detection();
     }
     RCLCPP_INFO(get_logger(), "切换任务: 从 %s 到 %s",
                 flightStateToString(flight_state_).c_str(),
