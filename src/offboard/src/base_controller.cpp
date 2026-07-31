@@ -120,15 +120,25 @@ void BaseController::task_callback(const std_msgs::msg::Int32::ConstSharedPtr& m
     int new_task_id = msg->data;//看msg里面拿到信息
 
     // 只有当任务ID有效且发生变化时才处理
-    if (new_task_id == 1 || new_task_id == 2) {
-        if (new_task_id != current_task_id_) {
+    if (new_task_id == 1 || new_task_id == 2) 
+    {
+        if(flight_state_!=FlightState::INIT)
+        {
+            RCLCPP_INFO(get_logger(), "非init状态，不可以切换任务！！！");
+        }
+        else if (new_task_id != current_task_id_) 
+        {
             RCLCPP_INFO(get_logger(), "接收到任务指令: %d（任务已切换）", new_task_id);
             current_task_id_ = new_task_id;
-        } else {
+        } 
+        else 
+        {
             // 数据没有变化，不处理
             RCLCPP_DEBUG(get_logger(), "接收到任务指令: %d（与当前任务相同，未切换）", new_task_id);
         }
-    } else {
+    } 
+    else 
+    {
         RCLCPP_WARN(get_logger(), "无效的任务ID: %d", new_task_id);
     }
 

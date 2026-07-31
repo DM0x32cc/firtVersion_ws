@@ -641,14 +641,7 @@ void TaskController::switch_task(FlightState new_state)
     {
         return;
     }
-    // if (new_state == FlightState::INIT) //这没事阿，反正基本不会有人调用这个吧？？？
-    // {//所有相关变量都要在这里重置！！！！
-    //     apply_disarm_flag_ = false;      // ← 新飞行开始，重置上锁标志
-    //     mode_switched_for_landing_ = false;  // ← 加这行
-    //     launch_flag_ = false; //
-    //     cpfly_takedown_ = false;
-    //     target_data_ready_=false; //
-    // }
+    
     if (new_state == FlightState::INIT)
     {
         // 任务id重置
