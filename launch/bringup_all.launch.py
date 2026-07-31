@@ -87,21 +87,30 @@ def generate_launch_description():
         output='screen'
     )
 
+    # 6. 串口桥接节点
+    launch_serial_bridge = Node(
+        package='serial',
+        executable='serial_bridge',
+        name='serial_bridge',
+        output='screen',
+        parameters=[{'port': '/dev/ttyUSB0'}]
+    )
+
     # 使用 TimerAction 串联启动，保持原有延时效果
     return LaunchDescription([
 
         # 最先发送虚拟信号
         # launch_virtual_rc_node,
-        
+
         # 然后启动雷达驱动
         livox_launch,
 
-        # 4 秒后启动 FAST-LIO 
+        # 4 秒后启动 FAST-LIO
         TimerAction(
             period=10.0,
             actions=[fast_lio_launch]
         ),
-        
+
         # 9 秒后启动 OdomToPose
         TimerAction(
             period=17.0,
@@ -115,10 +124,10 @@ def generate_launch_description():
         ),
 
 
-        # 15 秒后启动任务控制器
+        # 15 秒后启动任务控制器 + 串口桥接（offb_node 就位后立即启动）
         TimerAction(
             period=44.0,
-            actions=[launch_task_controller_node]
+            actions=[launch_task_controller_node, launch_serial_bridge]
         ),
     ])
 
