@@ -54,6 +54,8 @@ protected:
     void car_state_callback(const msg_tool::msg::CarState::ConstSharedPtr& msg);
     // 工具函数
     void compress_waypoints(std::vector<std::vector<double>>& waypoints);//航点压缩非常好的一个工具
+    double pixel_to_meter_x(double delta_pixel, double height);
+    double pixel_to_meter_y(double delta_pixel, double height);
 
     // tilt_land()函数所需变量
     // tilt_land 阶段状态（非 static，每次任务重置）

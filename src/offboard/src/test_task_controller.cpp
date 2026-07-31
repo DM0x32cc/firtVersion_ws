@@ -47,8 +47,12 @@ TaskController::TaskController() : BaseController("offb_node"), cpfly_pid_x_(1.0
 void TaskController::target_callback(const msg_tool::msg::Color::ConstSharedPtr& msg)//先不用世界坐标系,先滤波
 {
     target_msg_ = *msg;
-    double world_dx = msg->delta_x * cos(current_yaw_) - msg->delta_y * sin(current_yaw_);
-    double world_dy = msg->delta_x * sin(current_yaw_) + msg->delta_y * cos(current_yaw_);
+    double height = local_position_.pose.position.z + 0.025;
+    double dx_meter = pixel_to_meter_x(msg->delta_x, height);
+    double dy_meter = pixel_to_meter_y(msg->delta_y, height);
+
+    double world_dx = dx_meter * cos(current_yaw_) - dy_meter * sin(current_yaw_);
+    double world_dy = dx_meter * sin(current_yaw_) + dy_meter * cos(current_yaw_);
     double car_world_x = local_position_.pose.position.x + world_dx;
     double car_world_y = local_position_.pose.position.y + world_dy;
     //错误数据不要直接跳过，全盘照收，如果中途丢数据，那么就用小车速度行驶吗？？？不行，还是留着县
@@ -635,6 +639,25 @@ void TaskController::takeoff_from_car()//起飞，然后飞到倾斜降落点
         start_x, start_y, 1.5,
         end_x, end_y, end_z,
         0);
+}
+
+// 像素偏移 → 实际距离（米）
+// delta_pixel: 像素偏移（align_node 发的 delta_x 或 delta_y）
+// height:      离地高度（米）= local_position_.pose.position.z + 0.025
+// 返回:        实际水平距离（米）
+
+double TaskController::pixel_to_meter_x(double delta_pixel, double height)
+{
+    const double half_width = 320.0;                           // 640 / 2
+    const double hfov_half  = 70.42 / 2.0 * M_PI / 180.0;     // 35.21°
+    return delta_pixel / half_width * height * tan(hfov_half);
+}
+
+double TaskController::pixel_to_meter_y(double delta_pixel, double height)
+{
+    const double half_height = 240.0;                          // 480 / 2
+    const double vfov_half   = 43.3 / 2.0 * M_PI / 180.0;     // 21.65°
+    return delta_pixel / half_height * height * tan(vfov_half);
 }
 
 void TaskController::switch_task(FlightState new_state)
