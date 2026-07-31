@@ -608,9 +608,9 @@ void TaskController::switch_task(FlightState new_state)
         // === 防卡位 ===
         reset_position_stuck_detection();    // ❌ 缺失（这个函数已写好，直接调用即可）
     }
-    RCLCPP_INFO(get_logger(), "切换任务: 从 %d 到 %d",
-                static_cast<int>(flight_state_),
-                static_cast<int>(new_state));
+    RCLCPP_INFO(get_logger(), "切换任务: 从 %s 到 %s",
+                flightStateToString(flight_state_).c_str(),
+                flightStateToString(new_state).c_str());
     flight_state_ = new_state;
 }
 
