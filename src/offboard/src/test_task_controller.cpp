@@ -651,6 +651,8 @@ void TaskController::switch_task(FlightState new_state)
     // }
     if (new_state == FlightState::INIT)
     {
+        // 任务id重置
+        current_task_id_ = -1 ;
         // === 父类变量 ===
         apply_disarm_flag_ = false;          // ✅ 已有
         mode_switched_for_landing_ = false;  // ✅ 已有

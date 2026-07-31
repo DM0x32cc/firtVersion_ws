@@ -172,7 +172,7 @@ protected:
     mavros_msgs::msg::State current_state_;//mavros
     geometry_msgs::msg::PoseStamped local_position_;//这个获取当前位置点与四元数姿态，这个数据从谁那里获得的呢？
     bool launch_flag_ = false;
-    int current_task_id_ = 1; // 存储当前任务ID
+    int current_task_id_ = -1; // 存储当前任务ID
     // 当前姿态
     double current_roll_ = 0, current_pitch_ = 0, current_yaw_ = 0;//那这么说我摆放时要注意了，你当前的飞控朝向是认为角度0的。
 
