@@ -5,6 +5,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Image
 from msg_tool.msg import Color
 from cv_bridge import CvBridge
+import cv2
 from crosshair_aligner.detect_crosshair import detect_crosshair
 
 
