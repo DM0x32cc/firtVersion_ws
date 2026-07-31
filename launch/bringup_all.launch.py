@@ -10,6 +10,21 @@ def generate_launch_description():
     current_dir = os.path.dirname(__file__)
     ws_root = os.path.dirname(current_dir)
 
+    # 0. 视觉管线 —— 与雷达无依赖，最早启动抢占初始化时间
+    launch_dvpp_camera_node = Node(
+        package='dvpp_camera',
+        executable='dvpp_camera_node',
+        name='dvpp_camera_node',
+        output='screen'
+    )
+
+    launch_align_node = Node(
+        package='crosshair_aligner',
+        executable='align_node',
+        name='align_node',
+        output='screen'
+    )
+
     # 1. Livox 驱动
     livox_launch_dir = os.path.join(ws_root, 'src', 'livox_ros_driver2', 'launch_ROS2')
     livox_launch = IncludeLaunchDescription(
@@ -102,10 +117,17 @@ def generate_launch_description():
         # 最先发送虚拟信号
         # launch_virtual_rc_node,
 
-        # 然后启动雷达驱动
+        # 然后启动雷达驱动 + 相机驱动（无依赖，并行启动）
         livox_launch,
+        launch_dvpp_camera_node,
 
-        # 4 秒后启动 FAST-LIO
+        # 5 秒后启动视觉检测（等相机出图稳定）
+        TimerAction(
+            period=5.0,
+            actions=[launch_align_node]
+        ),
+
+        # 10 秒后启动 FAST-LIO
         TimerAction(
             period=10.0,
             actions=[fast_lio_launch]
