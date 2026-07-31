@@ -41,11 +41,13 @@ class AlignNode(Node):
             self.get_logger().error(f'Failed to convert image: {e}')
             return
 
-        if self.img_width is None:
-            self.img_height, self.img_width = cv_image.shape[:2]
-            self.get_logger().info(f'Image size: {self.img_width}x{self.img_height}')
+        resized = cv2.resize(cv_image, (640, 480))
 
-        cx, cy, detected = detect_crosshair(cv_image)
+        if self.img_width is None:
+            self.img_height, self.img_width = resized.shape[:2]
+            self.get_logger().info(f'Image size (after resize): {self.img_width}x{self.img_height}')
+
+        cx, cy, detected = detect_crosshair(resized)
 
         cmd_msg = Color()
         cmd_msg.delta_x = 0.0

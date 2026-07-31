@@ -2,9 +2,6 @@ import cv2
 import numpy as np
 
 def detect_crosshair(image):
-    # Resize to 640x480 for speed
-    image = cv2.resize(image, (640, 480))
-
     gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
     blurred = cv2.GaussianBlur(gray, (5, 5), 0)
 
