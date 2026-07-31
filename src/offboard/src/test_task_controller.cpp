@@ -100,7 +100,7 @@ void TaskController::timer_callback()
     // 
     check_task_switch_conditions();//这个应该是可以用于辅助switch flight state
     
-    task_state_pub();// 发布消息，这波应该由地面站来接收
+    task_state_pub();// 发布消息，这波应该由地面站来接收，这个会一直发布准确的的
 
     if (current_task_id_ == 1) 
     {
@@ -129,7 +129,8 @@ void TaskController::timer_callback()
                 land(); 
                 if (!current_state_.armed) 
                 {
-                    switch_task(FlightState::INIT);
+                    switch_task(FlightState::INIT);//也就是说，在降落状态下，如果上锁，就进入这init模式，
+                                                   //这个switch函数会让他全部恢复至刚上电状态
                 }
 
                 break;
@@ -641,7 +642,7 @@ void TaskController::switch_task(FlightState new_state)
     {
         return;
     }
-    
+
     if (new_state == FlightState::INIT)
     {
         // 任务id重置
