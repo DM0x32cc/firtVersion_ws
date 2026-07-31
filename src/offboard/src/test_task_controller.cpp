@@ -584,7 +584,8 @@ void TaskController::land_on_car()//开始下降了
     if (touch_count_ >= 15)
     {
         // 确认停在车上
-        publish_velocity_body(0.0, 0.0, 0.0, 0.0);
+        // 不放零，放小车的速度
+        publish_velocity_body(car_speed_x_, car_speed_y_, 0, 0);
         touch_count_ = 0;
         land_last_z_ = 0.0;
         stay_start_time_ = this->get_clock()->now();//这里开始计算时间
