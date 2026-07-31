@@ -11,12 +11,12 @@ setup(
             ['resource/' + package_name]),
         ('share/' + package_name, ['package.xml']),
     ],
-    install_requires=['setuptools'],
+    install_requires=['setuptools', 'pyserial'],
     zip_safe=True,
     maintainer='galbrena',
     maintainer_email='wavesyang@outlook.com',
-    description='TODO: Package description',
-    license='TODO: License declaration',
+    description='HC-12 serial bridge for UAV-car-GCS communication',
+    license='Apache-2.0',
     extras_require={
         'test': [
             'pytest',
@@ -24,6 +24,7 @@ setup(
     },
     entry_points={
         'console_scripts': [
+            'serial_bridge = serial.serial_bridge_node:main',
         ],
     },
 )
